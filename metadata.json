@@ -1,0 +1,8 @@
+{
+  "name": "Remix Remix Remix SPO Generator AI - Standar Prosedur Operasional",
+  "description": "Generator SPO/SOP otomatis berbasis AI Gemini sesuai format standar operasional rumah sakit dan korporasi dengan live editor, ekspor PDF, dan Word.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
