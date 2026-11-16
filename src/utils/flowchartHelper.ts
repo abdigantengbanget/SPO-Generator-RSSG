@@ -1528,9 +1528,7 @@ export function buildFlowchartSvgMarkup(spo: Partial<SpoDocument>): {
   parts.push(`<text x="566" y="${fy}" fill="#475569" font-size="10.5">Dokumen / Resep</text>`);
   parts.push(`<rect x="674" y="${fy - 8}" width="11" height="9" fill="#f0f9ff" stroke="#0284c7" stroke-width="1.2"/>`);
   parts.push(`<text x="690" y="${fy}" fill="#475569" font-size="10.5">SIMRS / Database</text>`);
-  parts.push(
-    `<text x="${width - 16}" y="${fy}" text-anchor="end" fill="#94a3b8" font-size="10.5" font-style="italic">Standar SPO PT Cipta Nirmala / RS Semen Gresik</text>`
-  );
+ 
 
   // Outer frame border matching container border
   parts.push(`<rect x="0.5" y="0.5" width="${width - 1}" height="${height - 1}" fill="none" stroke="#94a3b8" stroke-width="1.5"/>`);
