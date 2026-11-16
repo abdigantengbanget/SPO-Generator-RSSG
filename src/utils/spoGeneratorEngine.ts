@@ -1,6 +1,6 @@
-import { SpoDocument, DefinisiItem, RiskRegisterItem, ProsedurItem, TanggungJawabUnitItem, AlurNode } from '../types/spo';
-import { buildFlowchartModelFromSpo } from './flowchartHelper';
-import { normalizeRiwayatPerubahan } from './spoFormatHelper';
+import { SpoDocument, DefinisiItem, RiskRegisterItem, ProsedurItem, TanggungJawabUnitItem, AlurNode } from '../types/spo.js';
+import { buildFlowchartModelFromSpo } from './flowchartHelper.js';
+import { normalizeRiwayatPerubahan } from './spoFormatHelper.js';
 
 interface GenerateOptions {
   judul: string;

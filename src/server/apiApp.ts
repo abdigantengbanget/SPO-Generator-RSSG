@@ -1,9 +1,9 @@
 import express from 'express';
 import dotenv from 'dotenv';
 import { GoogleGenAI, Type, ThinkingLevel } from '@google/genai';
-import { generateSmartSpoDocument } from '../utils/spoGeneratorEngine';
-import { buildFlowchartModelFromSpo } from '../utils/flowchartHelper';
-import { normalizeRiwayatPerubahan } from '../utils/spoFormatHelper';
+import { generateSmartSpoDocument } from '../utils/spoGeneratorEngine.js';
+import { buildFlowchartModelFromSpo } from '../utils/flowchartHelper.js';
+import { normalizeRiwayatPerubahan } from '../utils/spoFormatHelper.js';
 
 dotenv.config();
 

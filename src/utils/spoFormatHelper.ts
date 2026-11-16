@@ -1,4 +1,4 @@
-import { RiwayatPerubahanItem } from '../types/spo';
+import { RiwayatPerubahanItem } from '../types/spo.js';
 
 /**
  * Formats metadata.noRevisi into a clean consistent version label

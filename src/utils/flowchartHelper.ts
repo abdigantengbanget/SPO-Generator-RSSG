@@ -6,7 +6,7 @@ import {
   FlowConnection,
   FlowPoint,
   SpoDocument,
-} from '../types/spo';
+} from '../types/spo.js';
 
 export interface SymbolDefinition {
   type: FlowNodeType;
