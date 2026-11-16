@@ -1276,6 +1276,45 @@ export function computeConnectionGeometry(
   let pathD = '';
   let midWaypoint: FlowPoint;
 
+  const getDirVec = (h: 'top' | 'bottom' | 'left' | 'right'): FlowPoint => {
+    switch (h) {
+      case 'top':
+        return { x: 0, y: -1 };
+      case 'bottom':
+        return { x: 0, y: 1 };
+      case 'left':
+        return { x: -1, y: 0 };
+      case 'right':
+        return { x: 1, y: 0 };
+    }
+  };
+
+  const buildOrthoPath = (pts: FlowPoint[]): string => {
+    const cleaned: FlowPoint[] = [];
+    for (const pt of pts) {
+      const rx = Math.round(pt.x);
+      const ry = Math.round(pt.y);
+      const prev = cleaned[cleaned.length - 1];
+      if (prev && prev.x === rx && prev.y === ry) continue;
+      if (cleaned.length >= 2) {
+        const a = cleaned[cleaned.length - 2];
+        const b = cleaned[cleaned.length - 1];
+        if ((a.x === b.x && b.x === rx) || (a.y === b.y && b.y === ry)) {
+          cleaned[cleaned.length - 1] = { x: rx, y: ry };
+          continue;
+        }
+      }
+      cleaned.push({ x: rx, y: ry });
+    }
+    if (cleaned.length === 0) return `M ${startPt.x} ${startPt.y} L ${endPt.x} ${endPt.y}`;
+    return cleaned.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+  };
+
+  const sDir = getDirVec(effectiveSourceHandle);
+  const tDir = getDirVec(effectiveTargetHandle);
+  const sVertical = effectiveSourceHandle === 'top' || effectiveSourceHandle === 'bottom';
+  const tVertical = effectiveTargetHandle === 'top' || effectiveTargetHandle === 'bottom';
+
   if (routing === 'direct') {
     pathD = `M ${startPt.x} ${startPt.y} L ${endPt.x} ${endPt.y}`;
     midWaypoint = {
@@ -1283,54 +1322,357 @@ export function computeConnectionGeometry(
       y: Math.round((startPt.y + endPt.y) / 2),
     };
   } else if (routing === 'curved') {
-    const curX = conn.waypoints?.[0]?.x ?? Math.round((startPt.x + endPt.x) / 2) + segOffset;
-    const curY = conn.waypoints?.[0]?.y ?? Math.round((startPt.y + endPt.y) / 2);
-    pathD = `M ${startPt.x} ${startPt.y} Q ${curX} ${curY} ${endPt.x} ${endPt.y}`;
-    midWaypoint = { x: curX, y: curY };
+    if (conn.waypoints && conn.waypoints.length > 0) {
+      // Solve quadratic Bezier control point so the curve passes directly through waypoints[0] at t=0.5
+      const wp = conn.waypoints[0];
+      const ctrlX = Math.round(2 * wp.x - 0.5 * (startPt.x + endPt.x));
+      const ctrlY = Math.round(2 * wp.y - 0.5 * (startPt.y + endPt.y));
+      pathD = `M ${startPt.x} ${startPt.y} Q ${ctrlX} ${ctrlY} ${endPt.x} ${endPt.y}`;
+      midWaypoint = wp;
+    } else {
+      const dist = Math.hypot(endPt.x - startPt.x, endPt.y - startPt.y);
+      const tangent = Math.max(48, Math.min(180, Math.round(dist * 0.45)));
+      // Slight perpendicular bow if nodes are collinear so curved mode always looks curved
+      const isCollinearVert = Math.abs(startPt.x - endPt.x) < 4 && sVertical && tVertical;
+      const isCollinearHoriz = Math.abs(startPt.y - endPt.y) < 4 && !sVertical && !tVertical;
+      const bowX = isCollinearVert && segOffset === 0 ? 36 : segOffset;
+      const bowY = isCollinearHoriz && segOffset === 0 ? -36 : segOffset;
+
+      const cp1 = {
+        x: Math.round(startPt.x + sDir.x * tangent + (sVertical ? bowX : 0)),
+        y: Math.round(startPt.y + sDir.y * tangent + (!sVertical ? bowY : 0)),
+      };
+      const cp2 = {
+        x: Math.round(endPt.x + tDir.x * tangent + (tVertical ? bowX : 0)),
+        y: Math.round(endPt.y + tDir.y * tangent + (!tVertical ? bowY : 0)),
+      };
+      pathD = `M ${startPt.x} ${startPt.y} C ${cp1.x} ${cp1.y}, ${cp2.x} ${cp2.y}, ${endPt.x} ${endPt.y}`;
+      // Exact point on cubic Bezier at t = 0.5
+      midWaypoint = {
+        x: Math.round(0.125 * startPt.x + 0.375 * cp1.x + 0.375 * cp2.x + 0.125 * endPt.x),
+        y: Math.round(0.125 * startPt.y + 0.375 * cp1.y + 0.375 * cp2.y + 0.125 * endPt.y),
+      };
+    }
   } else if (conn.waypoints && conn.waypoints.length > 0) {
     if (conn.waypoints.length === 1) {
       const wp = conn.waypoints[0];
-      if (Math.abs(wp.x - (startPt.x + endPt.x) / 2) > 25) {
-        pathD = `M ${startPt.x} ${startPt.y} L ${wp.x} ${startPt.y} L ${wp.x} ${endPt.y} L ${endPt.x} ${endPt.y}`;
+      if (sVertical && tVertical) {
+        const needsSideDetour =
+          (effectiveSourceHandle === 'bottom' && effectiveTargetHandle === 'top' && endPt.y < startPt.y + 12) ||
+          (effectiveSourceHandle === 'top' && effectiveTargetHandle === 'bottom' && endPt.y > startPt.y - 12);
+        if (needsSideDetour) {
+          const exitY = startPt.y + sDir.y * 24;
+          const entryY = endPt.y + tDir.y * 24;
+          pathD = buildOrthoPath([
+            startPt,
+            { x: startPt.x, y: exitY },
+            { x: wp.x, y: exitY },
+            { x: wp.x, y: entryY },
+            { x: endPt.x, y: entryY },
+            endPt,
+          ]);
+          midWaypoint = wp;
+        } else {
+          pathD = buildOrthoPath([
+            startPt,
+            { x: startPt.x, y: wp.y },
+            { x: endPt.x, y: wp.y },
+            endPt,
+          ]);
+          midWaypoint = { x: Math.round((startPt.x + endPt.x) / 2), y: wp.y };
+        }
+      } else if (!sVertical && !tVertical) {
+        const needsVertDetour =
+          (effectiveSourceHandle === 'right' && effectiveTargetHandle === 'left' && endPt.x < startPt.x + 12) ||
+          (effectiveSourceHandle === 'left' && effectiveTargetHandle === 'right' && endPt.x > startPt.x - 12);
+        if (needsVertDetour) {
+          const exitX = startPt.x + sDir.x * 28;
+          const entryX = endPt.x + tDir.x * 28;
+          pathD = buildOrthoPath([
+            startPt,
+            { x: exitX, y: startPt.y },
+            { x: exitX, y: wp.y },
+            { x: entryX, y: wp.y },
+            { x: entryX, y: endPt.y },
+            endPt,
+          ]);
+          midWaypoint = wp;
+        } else {
+          pathD = buildOrthoPath([
+            startPt,
+            { x: wp.x, y: startPt.y },
+            { x: wp.x, y: endPt.y },
+            endPt,
+          ]);
+          midWaypoint = { x: wp.x, y: Math.round((startPt.y + endPt.y) / 2) };
+        }
+      } else if (!sVertical && tVertical) {
+        // Horizontal exit -> vertical entry passing orthogonally through wp
+        pathD = buildOrthoPath([
+          startPt,
+          { x: wp.x, y: startPt.y },
+          { x: wp.x, y: wp.y },
+          { x: endPt.x, y: wp.y },
+          endPt,
+        ]);
+        midWaypoint = wp;
       } else {
-        pathD = `M ${startPt.x} ${startPt.y} L ${startPt.x} ${wp.y} L ${endPt.x} ${wp.y} L ${endPt.x} ${endPt.y}`;
+        // Vertical exit -> horizontal entry passing orthogonally through wp
+        pathD = buildOrthoPath([
+          startPt,
+          { x: startPt.x, y: wp.y },
+          { x: wp.x, y: wp.y },
+          { x: wp.x, y: endPt.y },
+          endPt,
+        ]);
+        midWaypoint = wp;
       }
-      midWaypoint = wp;
     } else {
-      pathD = `M ${startPt.x} ${startPt.y}`;
-      conn.waypoints.forEach((wp) => {
-        pathD += ` L ${wp.x} ${wp.y}`;
-      });
-      pathD += ` L ${endPt.x} ${endPt.y}`;
-      midWaypoint = conn.waypoints[Math.floor(conn.waypoints.length / 2)];
+      // Multi-waypoint strictly orthogonal routing respecting source & target handle axes
+      const wps = conn.waypoints;
+      const pts: FlowPoint[] = [startPt];
+      let lastHoriz: boolean;
+
+      if (sVertical) {
+        pts.push({ x: startPt.x, y: wps[0].y });
+        pts.push(wps[0]);
+        lastHoriz = wps[0].x !== startPt.x;
+      } else {
+        pts.push({ x: wps[0].x, y: startPt.y });
+        pts.push(wps[0]);
+        lastHoriz = wps[0].y === startPt.y;
+      }
+
+      for (let i = 1; i < wps.length; i++) {
+        const prev = wps[i - 1];
+        const curr = wps[i];
+        if (lastHoriz) {
+          pts.push({ x: prev.x, y: curr.y });
+          lastHoriz = curr.x !== prev.x;
+        } else {
+          pts.push({ x: curr.x, y: prev.y });
+          lastHoriz = curr.y === prev.y;
+        }
+        pts.push(curr);
+      }
+
+      const lastWp = wps[wps.length - 1];
+      if (tVertical) {
+        pts.push({ x: endPt.x, y: lastWp.y });
+      } else {
+        pts.push({ x: lastWp.x, y: endPt.y });
+      }
+      pts.push(endPt);
+
+      pathD = buildOrthoPath(pts);
+      midWaypoint = wps[Math.floor(wps.length / 2)];
     }
   } else {
+    // Auto-orthogonal routing for ALL 16 (sourceHandle x targetHandle) combinations
+    const STUB = 26;
+
     if (effectiveSourceHandle === 'bottom' && effectiveTargetHandle === 'top') {
-      const midY = Math.round((startPt.y + endPt.y) / 2) + segOffset;
-      pathD = `M ${startPt.x} ${startPt.y} L ${startPt.x} ${midY} L ${endPt.x} ${midY} L ${endPt.x} ${endPt.y}`;
-      midWaypoint = { x: Math.round((startPt.x + endPt.x) / 2), y: midY };
-    } else if (effectiveSourceHandle === 'right' && effectiveTargetHandle === 'top') {
-      const cornerX = Math.max(startPt.x + 35, endPt.x + 35) + segOffset;
-      const cornerY = endPt.y - 25;
-      pathD = `M ${startPt.x} ${startPt.y} L ${cornerX} ${startPt.y} L ${cornerX} ${cornerY} L ${endPt.x} ${cornerY} L ${endPt.x} ${endPt.y}`;
-      midWaypoint = { x: cornerX, y: Math.round((startPt.y + cornerY) / 2) };
+      if (endPt.y >= startPt.y + 12) {
+        const midY = Math.round((startPt.y + endPt.y) / 2) + segOffset;
+        pathD = buildOrthoPath([
+          startPt,
+          { x: startPt.x, y: midY },
+          { x: endPt.x, y: midY },
+          endPt,
+        ]);
+        midWaypoint = { x: Math.round((startPt.x + endPt.x) / 2), y: midY };
+      } else {
+        const exitY = startPt.y + STUB;
+        const entryY = endPt.y - STUB;
+        const hasHorizGap = tx > sx + sw + 24 || tx + tw + 24 < sx;
+        const detourX = hasHorizGap
+          ? Math.round((startPt.x + endPt.x) / 2) + segOffset
+          : Math.max(sx + sw, tx + tw) + 38 + segOffset;
+        pathD = buildOrthoPath([
+          startPt,
+          { x: startPt.x, y: exitY },
+          { x: detourX, y: exitY },
+          { x: detourX, y: entryY },
+          { x: endPt.x, y: entryY },
+          endPt,
+        ]);
+        midWaypoint = { x: detourX, y: Math.round((exitY + entryY) / 2) };
+      }
+    } else if (effectiveSourceHandle === 'top' && effectiveTargetHandle === 'bottom') {
+      if (endPt.y <= startPt.y - 12) {
+        const midY = Math.round((startPt.y + endPt.y) / 2) + segOffset;
+        pathD = buildOrthoPath([
+          startPt,
+          { x: startPt.x, y: midY },
+          { x: endPt.x, y: midY },
+          endPt,
+        ]);
+        midWaypoint = { x: Math.round((startPt.x + endPt.x) / 2), y: midY };
+      } else {
+        const exitY = startPt.y - STUB;
+        const entryY = endPt.y + STUB;
+        const hasHorizGap = tx > sx + sw + 24 || tx + tw + 24 < sx;
+        const detourX = hasHorizGap
+          ? Math.round((startPt.x + endPt.x) / 2) + segOffset
+          : Math.max(sx + sw, tx + tw) + 38 + segOffset;
+        pathD = buildOrthoPath([
+          startPt,
+          { x: startPt.x, y: exitY },
+          { x: detourX, y: exitY },
+          { x: detourX, y: entryY },
+          { x: endPt.x, y: entryY },
+          endPt,
+        ]);
+        midWaypoint = { x: detourX, y: Math.round((exitY + entryY) / 2) };
+      }
+    } else if (effectiveSourceHandle === 'right' && effectiveTargetHandle === 'left') {
+      if (endPt.x >= startPt.x + 12) {
+        const midX = Math.round((startPt.x + endPt.x) / 2) + segOffset;
+        pathD = buildOrthoPath([
+          startPt,
+          { x: midX, y: startPt.y },
+          { x: midX, y: endPt.y },
+          endPt,
+        ]);
+        midWaypoint = { x: midX, y: Math.round((startPt.y + endPt.y) / 2) };
+      } else {
+        const exitX = startPt.x + STUB;
+        const entryX = endPt.x - STUB;
+        const hasVertGap = ty > sy + sh + 20 || ty + th + 20 < sy;
+        const detourY = hasVertGap
+          ? Math.round((startPt.y + endPt.y) / 2) + segOffset
+          : Math.min(sy, ty) - 34 + segOffset;
+        pathD = buildOrthoPath([
+          startPt,
+          { x: exitX, y: startPt.y },
+          { x: exitX, y: detourY },
+          { x: entryX, y: detourY },
+          { x: entryX, y: endPt.y },
+          endPt,
+        ]);
+        midWaypoint = { x: Math.round((exitX + entryX) / 2), y: detourY };
+      }
+    } else if (effectiveSourceHandle === 'left' && effectiveTargetHandle === 'right') {
+      if (endPt.x <= startPt.x - 12) {
+        const midX = Math.round((startPt.x + endPt.x) / 2) + segOffset;
+        pathD = buildOrthoPath([
+          startPt,
+          { x: midX, y: startPt.y },
+          { x: midX, y: endPt.y },
+          endPt,
+        ]);
+        midWaypoint = { x: midX, y: Math.round((startPt.y + endPt.y) / 2) };
+      } else {
+        const exitX = startPt.x - STUB;
+        const entryX = endPt.x + STUB;
+        const hasVertGap = ty > sy + sh + 20 || ty + th + 20 < sy;
+        const detourY = hasVertGap
+          ? Math.round((startPt.y + endPt.y) / 2) + segOffset
+          : Math.min(sy, ty) - 34 + segOffset;
+        pathD = buildOrthoPath([
+          startPt,
+          { x: exitX, y: startPt.y },
+          { x: exitX, y: detourY },
+          { x: entryX, y: detourY },
+          { x: entryX, y: endPt.y },
+          endPt,
+        ]);
+        midWaypoint = { x: Math.round((exitX + entryX) / 2), y: detourY };
+      }
     } else if (effectiveSourceHandle === 'right' && effectiveTargetHandle === 'right') {
-      const loopX = Math.max(startPt.x, endPt.x) + 45 + segOffset;
-      pathD = `M ${startPt.x} ${startPt.y} L ${loopX} ${startPt.y} L ${loopX} ${endPt.y} L ${endPt.x} ${endPt.y}`;
+      const loopX = Math.max(startPt.x, endPt.x) + 44 + segOffset;
+      pathD = buildOrthoPath([
+        startPt,
+        { x: loopX, y: startPt.y },
+        { x: loopX, y: endPt.y },
+        endPt,
+      ]);
       midWaypoint = { x: loopX, y: Math.round((startPt.y + endPt.y) / 2) };
-    } else if (effectiveSourceHandle === 'left' && effectiveTargetHandle === 'top') {
-      const cornerX = Math.min(startPt.x - 35, endPt.x - 35) - segOffset;
-      const cornerY = endPt.y - 25;
-      pathD = `M ${startPt.x} ${startPt.y} L ${cornerX} ${startPt.y} L ${cornerX} ${cornerY} L ${endPt.x} ${cornerY} L ${endPt.x} ${endPt.y}`;
-      midWaypoint = { x: cornerX, y: Math.round((startPt.y + cornerY) / 2) };
     } else if (effectiveSourceHandle === 'left' && effectiveTargetHandle === 'left') {
-      const loopX = Math.min(startPt.x, endPt.x) - 45 - segOffset;
-      pathD = `M ${startPt.x} ${startPt.y} L ${loopX} ${startPt.y} L ${loopX} ${endPt.y} L ${endPt.x} ${endPt.y}`;
+      const loopX = Math.min(startPt.x, endPt.x) - 44 - segOffset;
+      pathD = buildOrthoPath([
+        startPt,
+        { x: loopX, y: startPt.y },
+        { x: loopX, y: endPt.y },
+        endPt,
+      ]);
       midWaypoint = { x: loopX, y: Math.round((startPt.y + endPt.y) / 2) };
+    } else if (effectiveSourceHandle === 'top' && effectiveTargetHandle === 'top') {
+      const loopY = Math.min(startPt.y, endPt.y) - 34 - segOffset;
+      pathD = buildOrthoPath([
+        startPt,
+        { x: startPt.x, y: loopY },
+        { x: endPt.x, y: loopY },
+        endPt,
+      ]);
+      midWaypoint = { x: Math.round((startPt.x + endPt.x) / 2), y: loopY };
+    } else if (effectiveSourceHandle === 'bottom' && effectiveTargetHandle === 'bottom') {
+      const loopY = Math.max(startPt.y, endPt.y) + 34 + segOffset;
+      pathD = buildOrthoPath([
+        startPt,
+        { x: startPt.x, y: loopY },
+        { x: endPt.x, y: loopY },
+        endPt,
+      ]);
+      midWaypoint = { x: Math.round((startPt.x + endPt.x) / 2), y: loopY };
+    } else if (!sVertical && tVertical) {
+      // Perpendicular H -> V (right/left -> top/bottom)
+      const dxToward = (endPt.x - startPt.x) * sDir.x;
+      const dyToward = (startPt.y - endPt.y) * tDir.y;
+
+      if (dxToward >= 18 && dyToward >= 18 && segOffset === 0) {
+        // Clean 1-corner L-bend
+        pathD = buildOrthoPath([startPt, { x: endPt.x, y: startPt.y }, endPt]);
+        midWaypoint = { x: Math.round((startPt.x + endPt.x) / 2), y: startPt.y };
+      } else {
+        const entryY = endPt.y + tDir.y * 24;
+        let cornerX: number;
+        if (dxToward >= 32) {
+          cornerX = startPt.x + sDir.x * Math.max(30, Math.round(dxToward / 2) + segOffset);
+        } else {
+          cornerX =
+            sDir.x > 0
+              ? Math.max(startPt.x + 36, tx + tw + 30) + segOffset
+              : Math.min(startPt.x - 36, tx - 30) - segOffset;
+        }
+        pathD = buildOrthoPath([
+          startPt,
+          { x: cornerX, y: startPt.y },
+          { x: cornerX, y: entryY },
+          { x: endPt.x, y: entryY },
+          endPt,
+        ]);
+        midWaypoint = { x: cornerX, y: Math.round((startPt.y + entryY) / 2) };
+      }
     } else {
-      const midX = Math.round((startPt.x + endPt.x) / 2) + segOffset;
-      pathD = `M ${startPt.x} ${startPt.y} L ${midX} ${startPt.y} L ${midX} ${endPt.y} L ${endPt.x} ${endPt.y}`;
-      midWaypoint = { x: midX, y: Math.round((startPt.y + endPt.y) / 2) };
+      // Perpendicular V -> H (top/bottom -> left/right)
+      const dyToward = (endPt.y - startPt.y) * sDir.y;
+      const dxToward = (startPt.x - endPt.x) * tDir.x;
+
+      if (dyToward >= 18 && dxToward >= 18 && segOffset === 0) {
+        // Clean 1-corner L-bend
+        pathD = buildOrthoPath([startPt, { x: startPt.x, y: endPt.y }, endPt]);
+        midWaypoint = { x: startPt.x, y: Math.round((startPt.y + endPt.y) / 2) };
+      } else {
+        const entryX = endPt.x + tDir.x * 32;
+        let cornerY: number;
+        if (dyToward >= 30) {
+          cornerY = startPt.y + sDir.y * Math.max(24, Math.round(dyToward / 2) + segOffset);
+        } else {
+          cornerY =
+            sDir.y > 0
+              ? Math.max(startPt.y + 30, ty + th + 28) + segOffset
+              : Math.min(startPt.y - 30, ty - 28) - segOffset;
+        }
+        pathD = buildOrthoPath([
+          startPt,
+          { x: startPt.x, y: cornerY },
+          { x: entryX, y: cornerY },
+          { x: entryX, y: endPt.y },
+          endPt,
+        ]);
+        midWaypoint = { x: Math.round((startPt.x + entryX) / 2), y: cornerY };
+      }
     }
   }
 
@@ -1388,8 +1730,7 @@ export function buildFlowchartSvgMarkup(spo: Partial<SpoDocument>): {
   const laneWidth = width / laneCount;
   const diagramHeight =
     Math.max(...model.nodes.map((n) => (n.y || 0) + (n.height || 74)), model.canvasHeight || 760) + 60;
-  const footerHeight = 36;
-  const height = diagramHeight + footerHeight;
+  const height = diagramHeight;
   const connections = model.connections || [];
 
   const parts: string[] = [];
@@ -1512,23 +1853,6 @@ export function buildFlowchartSvgMarkup(spo: Partial<SpoDocument>): {
       );
     });
   });
-
-  // Legend Footer Bar (matches SpoFlowchartDocumentEmbed.tsx)
-  parts.push(`<rect x="0" y="${diagramHeight}" width="${width}" height="${footerHeight}" fill="#f8fafc"/>`);
-  parts.push(`<line x1="0" y1="${diagramHeight}" x2="${width}" y2="${diagramHeight}" stroke="#cbd5e1" stroke-width="1"/>`);
-  const fy = diagramHeight + 22;
-  parts.push(`<text x="16" y="${fy}" fill="#1e293b" font-size="11" font-weight="700">Keterangan Simbol BPMN:</text>`);
-  parts.push(`<circle cx="176" cy="${fy - 3.5}" r="5" fill="#ecfdf5" stroke="#059669" stroke-width="1.2"/>`);
-  parts.push(`<text x="186" y="${fy}" fill="#475569" font-size="10.5">Mulai / Selesai</text>`);
-  parts.push(`<rect x="275" y="${fy - 8}" width="11" height="9" rx="2" fill="#ffffff" stroke="#334155" stroke-width="1.2"/>`);
-  parts.push(`<text x="291" y="${fy}" fill="#475569" font-size="10.5">Aktivitas / Tindakan</text>`);
-  parts.push(`<polygon points="414,${fy - 9} 419,${fy - 3.5} 414,${fy + 2} 409,${fy - 3.5}" fill="#fffbeb" stroke="#d97706" stroke-width="1.2"/>`);
-  parts.push(`<text x="424" y="${fy}" fill="#475569" font-size="10.5">Keputusan (Ya/Tidak)</text>`);
-  parts.push(`<rect x="550" y="${fy - 8}" width="11" height="9" fill="#faf5ff" stroke="#7c3aed" stroke-width="1.2"/>`);
-  parts.push(`<text x="566" y="${fy}" fill="#475569" font-size="10.5">Dokumen / Resep</text>`);
-  parts.push(`<rect x="674" y="${fy - 8}" width="11" height="9" fill="#f0f9ff" stroke="#0284c7" stroke-width="1.2"/>`);
-  parts.push(`<text x="690" y="${fy}" fill="#475569" font-size="10.5">SIMRS / Database</text>`);
- 
 
   // Outer frame border matching container border
   parts.push(`<rect x="0.5" y="0.5" width="${width - 1}" height="${height - 1}" fill="none" stroke="#94a3b8" stroke-width="1.5"/>`);

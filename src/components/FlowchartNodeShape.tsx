@@ -16,11 +16,22 @@ interface FlowchartNodeShapeProps {
   isConnectSource?: boolean;
   isDirectEditMode: boolean;
   isConnectMode?: boolean;
+  snappedPort?: 'top' | 'bottom' | 'left' | 'right' | null;
   onSelect: () => void;
   onUpdateNode: (patch: Partial<FlowNode>) => void;
   onDeleteNode: () => void;
   onDuplicateNode?: (nodeId: string) => void;
   onStartConnect: (nodeId: string, handle?: 'top' | 'bottom' | 'left' | 'right') => void;
+  onPinMouseDown?: (
+    e: React.MouseEvent,
+    nodeId: string,
+    handle: 'top' | 'bottom' | 'left' | 'right'
+  ) => void;
+  onPinMouseUp?: (
+    e: React.MouseEvent,
+    nodeId: string,
+    handle: 'top' | 'bottom' | 'left' | 'right'
+  ) => void;
   onPinClick?: (nodeId: string, handle: 'top' | 'bottom' | 'left' | 'right') => void;
   onStartResize?: (e: React.MouseEvent, nodeId: string, dir: 'se' | 'e' | 's') => void;
   onQuickAppend: (sourceId: string, type: FlowNodeType) => void;
@@ -39,11 +50,14 @@ export const FlowchartNodeShape: React.FC<FlowchartNodeShapeProps> = ({
   isConnectSource = false,
   isDirectEditMode,
   isConnectMode = false,
+  snappedPort = null,
   onSelect,
   onUpdateNode,
   onDeleteNode,
   onDuplicateNode,
   onStartConnect,
+  onPinMouseDown,
+  onPinMouseUp,
   onPinClick,
   onStartResize,
   onQuickAppend,
@@ -88,6 +102,20 @@ export const FlowchartNodeShape: React.FC<FlowchartNodeShapeProps> = ({
 
   // Place compact action bar below node if near top lane header so it never clips
   const placePadBelow = (node.y || 0) < 95;
+
+  const pinClass = (handle: 'top' | 'bottom' | 'left' | 'right') => {
+    const isSnapped = snappedPort === handle;
+    if (isSnapped) {
+      return 'bg-emerald-500 opacity-100 scale-135 ring-4 ring-emerald-300/80';
+    }
+    if (isConnectMode) {
+      return 'bg-emerald-600 opacity-100 scale-110 hover:scale-125 ring-2 ring-emerald-300';
+    }
+    if (isSelected) {
+      return 'bg-[#0078d4] opacity-90 hover:opacity-100 hover:scale-125';
+    }
+    return 'bg-[#0078d4] opacity-0 group-hover:opacity-100 hover:scale-125';
+  };
 
   return (
     <div
@@ -150,58 +178,61 @@ export const FlowchartNodeShape: React.FC<FlowchartNodeShapeProps> = ({
       </div>
 
       {/* 4-Side Connection Pin Handles (Top, Right, Bottom, Left) */}
-      <button
-        type="button"
-        onMouseDown={(e) => e.stopPropagation()}
-        onClick={(e) => handlePinAction(e, 'top')}
-        className={`no-print absolute -top-2.5 left-1/2 -translate-x-1/2 w-5 h-5 rounded-full border-2 border-white shadow-md transition-all cursor-crosshair z-35 flex items-center justify-center text-white text-[10px] font-black leading-none ${
-          isConnectMode
-            ? 'bg-emerald-600 opacity-100 scale-110 hover:scale-125 ring-2 ring-emerald-300'
-            : 'bg-[#0078d4] opacity-0 group-hover:opacity-100 hover:scale-125'
-        }`}
-        title={isConnectMode ? 'Sambungkan panah ke sisi atas simbol ini' : 'Tarik panah dari sisi atas'}
-      >
-        +
-      </button>
-      <button
-        type="button"
-        onMouseDown={(e) => e.stopPropagation()}
-        onClick={(e) => handlePinAction(e, 'right')}
-        className={`no-print absolute top-1/2 -right-2.5 -translate-y-1/2 w-5 h-5 rounded-full border-2 border-white shadow-md transition-all cursor-crosshair z-35 flex items-center justify-center text-white text-[10px] font-black leading-none ${
-          isConnectMode
-            ? 'bg-emerald-600 opacity-100 scale-110 hover:scale-125 ring-2 ring-emerald-300'
-            : 'bg-[#0078d4] opacity-0 group-hover:opacity-100 hover:scale-125'
-        }`}
-        title={isConnectMode ? 'Sambungkan panah ke sisi kanan simbol ini' : 'Tarik panah dari sisi kanan'}
-      >
-        +
-      </button>
-      <button
-        type="button"
-        onMouseDown={(e) => e.stopPropagation()}
-        onClick={(e) => handlePinAction(e, 'bottom')}
-        className={`no-print absolute -bottom-2.5 left-1/2 -translate-x-1/2 w-5 h-5 rounded-full border-2 border-white shadow-md transition-all cursor-crosshair z-35 flex items-center justify-center text-white text-[10px] font-black leading-none ${
-          isConnectMode
-            ? 'bg-emerald-600 opacity-100 scale-110 hover:scale-125 ring-2 ring-emerald-300'
-            : 'bg-[#0078d4] opacity-0 group-hover:opacity-100 hover:scale-125'
-        }`}
-        title={isConnectMode ? 'Sambungkan panah ke sisi bawah simbol ini' : 'Tarik panah dari sisi bawah'}
-      >
-        +
-      </button>
-      <button
-        type="button"
-        onMouseDown={(e) => e.stopPropagation()}
-        onClick={(e) => handlePinAction(e, 'left')}
-        className={`no-print absolute top-1/2 -left-2.5 -translate-y-1/2 w-5 h-5 rounded-full border-2 border-white shadow-md transition-all cursor-crosshair z-35 flex items-center justify-center text-white text-[10px] font-black leading-none ${
-          isConnectMode
-            ? 'bg-emerald-600 opacity-100 scale-110 hover:scale-125 ring-2 ring-emerald-300'
-            : 'bg-[#0078d4] opacity-0 group-hover:opacity-100 hover:scale-125'
-        }`}
-        title={isConnectMode ? 'Sambungkan panah ke sisi kiri simbol ini' : 'Tarik panah dari sisi kiri'}
-      >
-        +
-      </button>
+      {(
+        [
+          {
+            handle: 'top' as const,
+            pos: '-top-2.5 left-1/2 -translate-x-1/2',
+            label: 'atas',
+          },
+          {
+            handle: 'right' as const,
+            pos: 'top-1/2 -right-2.5 -translate-y-1/2',
+            label: 'kanan',
+          },
+          {
+            handle: 'bottom' as const,
+            pos: '-bottom-2.5 left-1/2 -translate-x-1/2',
+            label: 'bawah',
+          },
+          {
+            handle: 'left' as const,
+            pos: 'top-1/2 -left-2.5 -translate-y-1/2',
+            label: 'kiri',
+          },
+        ] as const
+      ).map(({ handle, pos, label }) => (
+        <button
+          key={handle}
+          type="button"
+          data-flow-pin="true"
+          data-node-id={node.id}
+          data-port={handle}
+          onMouseDown={(e) => {
+            e.stopPropagation();
+            if (onPinMouseDown) {
+              onPinMouseDown(e, node.id, handle);
+            }
+          }}
+          onMouseUp={(e) => {
+            if (onPinMouseUp) {
+              e.stopPropagation();
+              onPinMouseUp(e, node.id, handle);
+            }
+          }}
+          onClick={(e) => handlePinAction(e, handle)}
+          className={`no-print absolute ${pos} w-5 h-5 rounded-full border-2 border-white shadow-md transition-all cursor-crosshair z-35 flex items-center justify-center text-white text-[10px] font-black leading-none ${pinClass(
+            handle
+          )}`}
+          title={
+            isConnectMode
+              ? `Lepaskan atau klik untuk menyambung panah ke sisi ${label} simbol ini`
+              : `Tarik atau klik untuk menarik panah dari sisi ${label}`
+          }
+        >
+          +
+        </button>
+      ))}
 
       {/* Compact Non-Clipping Quick Action Pad (Detail Editing lives in Right Inspector) */}
       {isSelected && !isConnectMode && (

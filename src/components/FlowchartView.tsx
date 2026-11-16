@@ -188,6 +188,14 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({ spo, onChange }) =
   const [connectSourceId, setConnectSourceId] = useState<string | null>(null);
   const [connectSourceHandle, setConnectSourceHandle] = useState<'top' | 'bottom' | 'left' | 'right'>('bottom');
   const [connectMousePos, setConnectMousePos] = useState<FlowPoint | null>(null);
+  const [snappedTarget, setSnappedTarget] = useState<{
+    nodeId: string;
+    handle: 'top' | 'bottom' | 'left' | 'right';
+  } | null>(null);
+  const isDragConnectingRef = useRef<boolean>(false);
+  const connectDragStartMouseRef = useRef<FlowPoint | null>(null);
+  const skipNextPinClickRef = useRef<boolean>(false);
+  const handledPinMouseUpRef = useRef<boolean>(false);
 
   // Node Dragging State
   const [draggingNodeId, setDraggingNodeId] = useState<string | null>(null);
@@ -209,6 +217,16 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({ spo, onChange }) =
     waypointIndex: number;
     startMouse: FlowPoint;
     startPos: FlowPoint;
+    isPendingInsert?: boolean;
+  } | null>(null);
+  const waypointMovedRef = useRef<boolean>(false);
+
+  // Arrow Endpoint Re-attachment Dragging State
+  const [draggingEndpoint, setDraggingEndpoint] = useState<{
+    connId: string;
+    end: 'source' | 'target';
+    fixedNodeId: string;
+    mousePos: FlowPoint;
   } | null>(null);
 
   // Canvas Pan state for Hand tool
@@ -687,69 +705,204 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({ spo, onChange }) =
   // ==============================================================
   // ARROW (CONNECTION) CRUD, REVERSE, SEPARATION & BENDPOINTS
   // ==============================================================
+  const findNearestPortOnCanvas = useCallback(
+    (
+      canvasX: number,
+      canvasY: number,
+      excludeNodeId?: string
+    ): { nodeId: string; handle: 'top' | 'bottom' | 'left' | 'right'; pt: FlowPoint } | null => {
+      const handles: ('top' | 'bottom' | 'left' | 'right')[] = ['top', 'right', 'bottom', 'left'];
+      let bestMatch: {
+        nodeId: string;
+        handle: 'top' | 'bottom' | 'left' | 'right';
+        pt: FlowPoint;
+        dist: number;
+      } | null = null;
+
+      // 1. Magnetic snap to any port pin within 28px
+      for (const node of nodes) {
+        if (excludeNodeId && node.id === excludeNodeId) continue;
+        for (const h of handles) {
+          const pt = getPortPoint(node, h);
+          const d = Math.hypot(canvasX - pt.x, canvasY - pt.y);
+          if (d <= 28 && (!bestMatch || d < bestMatch.dist)) {
+            bestMatch = { nodeId: node.id, handle: h, pt, dist: d };
+          }
+        }
+      }
+      if (bestMatch) {
+        return { nodeId: bestMatch.nodeId, handle: bestMatch.handle, pt: bestMatch.pt };
+      }
+
+      // 2. If cursor is over a node box, snap to the nearest port edge of that node
+      for (const node of nodes) {
+        if (excludeNodeId && node.id === excludeNodeId) continue;
+        const nx = node.x || 0;
+        const ny = node.y || 0;
+        const nw = node.width || 180;
+        const nh = node.height || 74;
+        if (canvasX >= nx - 10 && canvasX <= nx + nw + 10 && canvasY >= ny - 10 && canvasY <= ny + nh + 10) {
+          let closestH: 'top' | 'bottom' | 'left' | 'right' = 'top';
+          let closestPt = getPortPoint(node, 'top');
+          let minD = Infinity;
+          for (const h of handles) {
+            const pt = getPortPoint(node, h);
+            const d = Math.hypot(canvasX - pt.x, canvasY - pt.y);
+            if (d < minD) {
+              minD = d;
+              closestH = h;
+              closestPt = pt;
+            }
+          }
+          return { nodeId: node.id, handle: closestH, pt: closestPt };
+        }
+      }
+      return null;
+    },
+    [nodes]
+  );
+
   const handleStartConnect = (sourceId: string, handle?: 'top' | 'bottom' | 'left' | 'right') => {
     setActiveTool('connect');
     setConnectSourceId(sourceId);
     setConnectSourceHandle(handle || 'bottom');
+    setSnappedTarget(null);
     setSelectedNodeId(sourceId);
     setSelectedConnectionId(null);
-    showToast('Klik simbol atau titik pin (+) tujuan untuk menyambungkan panah (Esc untuk batal).');
+    showToast('Klik atau arahkan ke pin (+) simbol tujuan untuk menyambung panah (Esc untuk batal).');
   };
 
-  const handleFinishConnect = (
-    targetId: string,
-    explicitTargetHandle?: 'top' | 'bottom' | 'left' | 'right'
-  ) => {
-    if (!connectSourceId || connectSourceId === targetId) {
+  const handleFinishConnect = useCallback(
+    (
+      targetId: string,
+      explicitTargetHandle?: 'top' | 'bottom' | 'left' | 'right'
+    ) => {
+      if (!connectSourceId || connectSourceId === targetId) {
+        setConnectSourceId(null);
+        setConnectMousePos(null);
+        setSnappedTarget(null);
+        setActiveTool('select');
+        return;
+      }
+
+      const sourceNode = nodes.find((n) => n.id === connectSourceId);
+      const targetNode = nodes.find((n) => n.id === targetId);
+      let resolvedTargetHandle: 'top' | 'bottom' | 'left' | 'right' = explicitTargetHandle || 'top';
+      if (!explicitTargetHandle && sourceNode && targetNode) {
+        const sy = sourceNode.y || 0;
+        const ty = targetNode.y || 0;
+        const sx = sourceNode.x || 0;
+        const tx = targetNode.x || 0;
+        if (connectSourceHandle === 'right') {
+          resolvedTargetHandle = ty < sy ? 'right' : tx > sx ? 'left' : 'top';
+        } else if (connectSourceHandle === 'left') {
+          resolvedTargetHandle = ty < sy ? 'left' : tx < sx ? 'right' : 'top';
+        } else if (connectSourceHandle === 'top') {
+          resolvedTargetHandle = 'bottom';
+        } else {
+          resolvedTargetHandle = 'top';
+        }
+      }
+
+      const newConnId = `conn-${connectSourceId}-${targetId}-${Date.now()}`;
+      const newConn: FlowConnection = {
+        id: newConnId,
+        sourceId: connectSourceId,
+        targetId,
+        label: sourceNode?.type === 'decision' ? 'Ya' : '',
+        sourceHandle: connectSourceHandle,
+        targetHandle: resolvedTargetHandle,
+      };
+
+      commitModelChange({
+        ...flowchartModel,
+        connections: [...connections, newConn],
+      });
+
       setConnectSourceId(null);
       setConnectMousePos(null);
+      setSnappedTarget(null);
+      isDragConnectingRef.current = false;
+      connectDragStartMouseRef.current = null;
       setActiveTool('select');
+      setSelectedConnectionId(newConnId);
+      setSelectedNodeId(null);
+      showToast('Tanda panah baru terhubung.');
+    },
+    [commitModelChange, connectSourceHandle, connectSourceId, connections, flowchartModel, nodes, showToast]
+  );
+
+  const handlePinMouseDown = (
+    e: React.MouseEvent,
+    nodeId: string,
+    handle: 'top' | 'bottom' | 'left' | 'right'
+  ) => {
+    if (activeTool === 'hand') return;
+    e.preventDefault();
+    e.stopPropagation();
+
+    // If user already started connect mode via click, clicking a different node's pin completes it
+    if (activeTool === 'connect' && connectSourceId && connectSourceId !== nodeId && !isDragConnectingRef.current) {
+      skipNextPinClickRef.current = true;
+      handleFinishConnect(nodeId, handle);
       return;
     }
 
-    const sourceNode = nodes.find((n) => n.id === connectSourceId);
-    const targetNode = nodes.find((n) => n.id === targetId);
-    let resolvedTargetHandle: 'top' | 'bottom' | 'left' | 'right' = explicitTargetHandle || 'top';
-    if (!explicitTargetHandle && sourceNode && targetNode) {
-      const sy = sourceNode.y || 0;
-      const ty = targetNode.y || 0;
-      const sx = sourceNode.x || 0;
-      const tx = targetNode.x || 0;
-      if (connectSourceHandle === 'right') {
-        resolvedTargetHandle = ty < sy ? 'right' : tx > sx ? 'left' : 'top';
-      } else if (connectSourceHandle === 'left') {
-        resolvedTargetHandle = ty < sy ? 'left' : tx < sx ? 'right' : 'top';
-      } else if (connectSourceHandle === 'top') {
-        resolvedTargetHandle = 'bottom';
-      } else {
-        resolvedTargetHandle = 'top';
+    isDragConnectingRef.current = true;
+    connectDragStartMouseRef.current = { x: e.clientX, y: e.clientY };
+    setActiveTool('connect');
+    setConnectSourceId(nodeId);
+    setConnectSourceHandle(handle);
+    setSnappedTarget(null);
+    setSelectedNodeId(nodeId);
+    setSelectedConnectionId(null);
+
+    if (canvasContainerRef.current) {
+      const rect = canvasContainerRef.current.getBoundingClientRect();
+      const s = zoomLevel / 100;
+      setConnectMousePos({
+        x: (e.clientX - rect.left) / s,
+        y: (e.clientY - rect.top) / s,
+      });
+    }
+  };
+
+  const handlePinMouseUp = (
+    e: React.MouseEvent,
+    nodeId: string,
+    handle: 'top' | 'bottom' | 'left' | 'right'
+  ) => {
+    if (draggingEndpoint) {
+      e.stopPropagation();
+      handledPinMouseUpRef.current = true;
+      if (nodeId !== draggingEndpoint.fixedNodeId) {
+        const updatedConns = connections.map((c) => {
+          if (c.id !== draggingEndpoint.connId) return c;
+          return draggingEndpoint.end === 'target'
+            ? { ...c, targetId: nodeId, targetHandle: handle, waypoints: undefined, segmentOffset: 0 }
+            : { ...c, sourceId: nodeId, sourceHandle: handle, waypoints: undefined, segmentOffset: 0 };
+        });
+        commitModelChange({ ...flowchartModel, connections: updatedConns });
+        showToast('Arah ujung panah diperbarui.');
       }
+      setDraggingEndpoint(null);
+      setSnappedTarget(null);
+      return;
     }
 
-    const newConnId = `conn-${connectSourceId}-${targetId}-${Date.now()}`;
-    const newConn: FlowConnection = {
-      id: newConnId,
-      sourceId: connectSourceId,
-      targetId,
-      label: sourceNode?.type === 'decision' ? 'Ya' : '',
-      sourceHandle: connectSourceHandle,
-      targetHandle: resolvedTargetHandle,
-    };
-
-    commitModelChange({
-      ...flowchartModel,
-      connections: [...connections, newConn],
-    });
-
-    setConnectSourceId(null);
-    setConnectMousePos(null);
-    setActiveTool('select');
-    setSelectedConnectionId(newConnId);
-    setSelectedNodeId(null);
-    showToast('Tanda panah baru terhubung.');
+    if (connectSourceId && connectSourceId !== nodeId) {
+      e.stopPropagation();
+      handledPinMouseUpRef.current = true;
+      skipNextPinClickRef.current = true;
+      handleFinishConnect(nodeId, handle);
+    }
   };
 
   const handlePinClick = (nodeId: string, handle: 'top' | 'bottom' | 'left' | 'right') => {
+    if (skipNextPinClickRef.current) {
+      skipNextPinClickRef.current = false;
+      return;
+    }
     if (activeTool === 'connect' && connectSourceId && connectSourceId !== nodeId) {
       handleFinishConnect(nodeId, handle);
       return;
@@ -838,12 +991,18 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({ spo, onChange }) =
   const handleReverseConnection = (connId: string) => {
     const updated = connections.map((c) => {
       if (c.id !== connId) return c;
+      const srcNode = nodes.find((n) => n.id === c.sourceId);
+      const tgtNode = nodes.find((n) => n.id === c.targetId);
+      const geom =
+        srcNode && tgtNode
+          ? computeConnectionGeometry(c, srcNode, tgtNode, connections)
+          : null;
       return {
         ...c,
         sourceId: c.targetId,
         targetId: c.sourceId,
-        sourceHandle: c.targetHandle || 'bottom',
-        targetHandle: c.sourceHandle || 'top',
+        sourceHandle: geom ? geom.effectiveTargetHandle : c.targetHandle || 'top',
+        targetHandle: geom ? geom.effectiveSourceHandle : c.sourceHandle || 'bottom',
         waypoints: c.waypoints ? [...c.waypoints].reverse() : undefined,
       };
     });
@@ -856,7 +1015,7 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({ spo, onChange }) =
     if (!conn) return;
     const newOffset = resetZero ? 0 : (conn.segmentOffset || 0) + delta;
     const updated = connections.map((c) =>
-      c.id === connId ? { ...c, segmentOffset: newOffset } : c
+      c.id === connId ? { ...c, segmentOffset: newOffset, waypoints: undefined } : c
     );
     commitModelChange({ ...flowchartModel, connections: updated });
     showToast(resetZero ? 'Posisi jalur di-reset ke tengah.' : `Jalur digeser (${newOffset > 0 ? '+' : ''}${newOffset}px).`);
@@ -873,6 +1032,8 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({ spo, onChange }) =
         ...c,
         ...(sourceHandle ? { sourceHandle } : {}),
         ...(targetHandle ? { targetHandle } : {}),
+        waypoints: undefined,
+        segmentOffset: 0,
       };
     });
     commitModelChange({ ...flowchartModel, connections: updated });
@@ -900,12 +1061,15 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({ spo, onChange }) =
   const handleNudgeConnection = (connId: string, dx: number, dy: number, fallbackMidPt?: FlowPoint) => {
     const conn = connections.find((c) => c.id === connId);
     if (!conn) return;
+    const src = nodes.find((n) => n.id === conn.sourceId);
+    const tgt = nodes.find((n) => n.id === conn.targetId);
+    const computedMid =
+      fallbackMidPt ||
+      (src && tgt ? computeConnectionGeometry(conn, src, tgt, connections).midWaypoint : { x: 480, y: 300 });
     let wps =
       conn.waypoints && conn.waypoints.length > 0
         ? [...conn.waypoints]
-        : fallbackMidPt
-        ? [{ ...fallbackMidPt }]
-        : [{ x: 480, y: 300 }];
+        : [{ ...computedMid }];
     wps = wps.map((wp) => ({
       x: Math.round((wp.x + dx) / 10) * 10,
       y: Math.round((wp.y + dy) / 10) * 10,
@@ -917,14 +1081,27 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({ spo, onChange }) =
   const handleAddConnectionWaypoint = (connId: string, fallbackMidPt?: FlowPoint) => {
     const conn = connections.find((c) => c.id === connId);
     if (!conn) return;
-    const currentWps =
-      conn.waypoints && conn.waypoints.length > 0
-        ? [...conn.waypoints]
-        : fallbackMidPt
-        ? [{ ...fallbackMidPt }]
-        : [{ x: 480, y: 300 }];
+    const src = nodes.find((n) => n.id === conn.sourceId);
+    const tgt = nodes.find((n) => n.id === conn.targetId);
+    const geom = src && tgt ? computeConnectionGeometry(conn, src, tgt, connections) : null;
+    const computedMid = fallbackMidPt || geom?.midWaypoint || { x: 480, y: 300 };
+
+    if (!conn.waypoints || conn.waypoints.length === 0) {
+      const updated = connections.map((c) =>
+        c.id === connId ? { ...c, waypoints: [{ ...computedMid }] } : c
+      );
+      commitModelChange({ ...flowchartModel, connections: updated });
+      showToast('Titik belokan ditambahkan di tengah jalur. Tarik titik biru untuk menggesernya.');
+      return;
+    }
+
+    const currentWps = [...conn.waypoints];
     const lastWp = currentWps[currentWps.length - 1];
-    const newWp: FlowPoint = { x: lastWp.x + 30, y: lastWp.y + 30 };
+    const endPt = geom?.endPt || { x: lastWp.x + 40, y: lastWp.y + 40 };
+    const newWp: FlowPoint = {
+      x: Math.round(((lastWp.x + endPt.x) / 2) / 10) * 10,
+      y: Math.round(((lastWp.y + endPt.y) / 2) / 10) * 10,
+    };
     const updated = connections.map((c) =>
       c.id === connId ? { ...c, waypoints: [...currentWps, newWp] } : c
     );
@@ -937,7 +1114,7 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({ spo, onChange }) =
     routingType: 'orthogonal' | 'direct' | 'curved'
   ) => {
     const updated = connections.map((c) =>
-      c.id === connId ? { ...c, routingType } : c
+      c.id === connId ? { ...c, routingType, waypoints: undefined } : c
     );
     commitModelChange({ ...flowchartModel, connections: updated });
   };
@@ -1119,7 +1296,18 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({ spo, onChange }) =
     if (activeTool === 'connect') {
       e.stopPropagation();
       if (connectSourceId) {
-        handleFinishConnect(nodeId);
+        let explicitPort: 'top' | 'bottom' | 'left' | 'right' | undefined;
+        if (canvasContainerRef.current && connectSourceId !== nodeId) {
+          const rect = canvasContainerRef.current.getBoundingClientRect();
+          const s = zoomLevel / 100;
+          const cx = (e.clientX - rect.left) / s;
+          const cy = (e.clientY - rect.top) / s;
+          const matched = findNearestPortOnCanvas(cx, cy, connectSourceId);
+          if (matched && matched.nodeId === nodeId) {
+            explicitPort = matched.handle;
+          }
+        }
+        handleFinishConnect(nodeId, explicitPort);
       } else {
         handleStartConnect(nodeId, 'bottom');
       }
@@ -1149,12 +1337,14 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({ spo, onChange }) =
     e.stopPropagation();
     setSelectedConnectionId(connId);
     setSelectedNodeId(null);
+    waypointMovedRef.current = false;
     beginDraftInteraction();
     setDraggingWaypoint({
       connId,
       waypointIndex,
       startMouse: { x: e.clientX, y: e.clientY },
       startPos: { x: startPos.x, y: startPos.y },
+      isPendingInsert: false,
     });
   };
 
@@ -1168,30 +1358,39 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({ spo, onChange }) =
     setSelectedConnectionId(conn.id);
     setSelectedNodeId(null);
 
-    let idx = 0;
-    let basePos = midPt;
-    let startingModel = baseFlowchartModel;
+    const hasExistingWaypoints = Boolean(conn.waypoints && conn.waypoints.length > 0);
+    const idx = hasExistingWaypoints ? Math.floor(conn.waypoints!.length / 2) : 0;
+    const basePos = hasExistingWaypoints ? conn.waypoints![idx] : midPt;
 
-    if (!conn.waypoints || conn.waypoints.length === 0) {
-      const updated = connections.map((c) =>
-        c.id === conn.id ? { ...c, waypoints: [{ x: midPt.x, y: midPt.y }] } : c
-      );
-      startingModel = { ...baseFlowchartModel, connections: updated };
-      basePos = midPt;
-    } else {
-      idx = Math.floor(conn.waypoints.length / 2);
-      basePos = conn.waypoints[idx];
-    }
-
-    preDragModelRef.current = baseFlowchartModel;
-    draftModelRef.current = startingModel;
-    setDraftModel(startingModel);
+    // Do NOT mutate waypoints on mousedown! Wait until user actually drags >= 3px.
+    waypointMovedRef.current = false;
+    beginDraftInteraction();
 
     setDraggingWaypoint({
       connId: conn.id,
       waypointIndex: idx,
       startMouse: { x: e.clientX, y: e.clientY },
       startPos: { x: basePos.x, y: basePos.y },
+      isPendingInsert: !hasExistingWaypoints,
+    });
+  };
+
+  const handleMouseDownEndpoint = (
+    e: React.MouseEvent,
+    conn: FlowConnection,
+    end: 'source' | 'target',
+    pt: FlowPoint
+  ) => {
+    if (!isDirectEditMode || activeTool === 'hand') return;
+    e.stopPropagation();
+    setSelectedConnectionId(conn.id);
+    setSelectedNodeId(null);
+    setSnappedTarget(null);
+    setDraggingEndpoint({
+      connId: conn.id,
+      end,
+      fixedNodeId: end === 'target' ? conn.sourceId : conn.targetId,
+      mousePos: pt,
     });
   };
 
@@ -1206,6 +1405,9 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({ spo, onChange }) =
     if (connectSourceId) {
       setConnectSourceId(null);
       setConnectMousePos(null);
+      setSnappedTarget(null);
+      isDragConnectingRef.current = false;
+      connectDragStartMouseRef.current = null;
       setActiveTool('select');
     }
   };
@@ -1307,11 +1509,33 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({ spo, onChange }) =
         const laneIndex = Math.min(laneCount - 1, Math.max(0, Math.floor((newX + nodeW / 2) / laneWidth)));
         const newLane = lanes[laneIndex]?.id || lanes[0]?.id || 'admin';
 
+        // Keep attached custom waypoints balanced relative to preDragModelRef when node moves
+        const origModel = preDragModelRef.current || activeDraft;
+        const origNode = origModel.nodes.find((n) => n.id === draggingNodeId);
+        const movedDx = newX - (origNode?.x || 0);
+        const movedDy = newY - (origNode?.y || 0);
+
+        const nextConnections = (origModel.connections || []).map((c) => {
+          if (!c.waypoints || c.waypoints.length === 0) return c;
+          const isSrc = c.sourceId === draggingNodeId;
+          const isTgt = c.targetId === draggingNodeId;
+          if (!isSrc && !isTgt) return c;
+          const factor = isSrc && isTgt ? 1 : 0.5;
+          return {
+            ...c,
+            waypoints: c.waypoints.map((wp) => ({
+              x: Math.round((wp.x + movedDx * factor) / 10) * 10,
+              y: Math.round((wp.y + movedDy * factor) / 10) * 10,
+            })),
+          };
+        });
+
         const nextModel: FlowchartModel = {
           ...activeDraft,
           nodes: activeDraft.nodes.map((n) =>
             n.id === draggingNodeId ? { ...n, x: newX, y: newY, lane: newLane } : n
           ),
+          connections: nextConnections,
         };
         draftModelRef.current = nextModel;
         setDraftModel(nextModel);
@@ -1319,20 +1543,29 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({ spo, onChange }) =
       }
 
       if (draggingWaypoint && activeDraft) {
+        const pixelMoved = Math.hypot(
+          e.clientX - draggingWaypoint.startMouse.x,
+          e.clientY - draggingWaypoint.startMouse.y
+        );
+        if (!waypointMovedRef.current && pixelMoved < 3) {
+          return;
+        }
+        waypointMovedRef.current = true;
+
         const deltaX = (e.clientX - draggingWaypoint.startMouse.x) / scale;
         const deltaY = (e.clientY - draggingWaypoint.startMouse.y) / scale;
+        const gridStep = isSnapToGrid ? 10 : 1;
 
-        const newX = Math.round((draggingWaypoint.startPos.x + deltaX) / 10) * 10;
-        const newY = Math.round((draggingWaypoint.startPos.y + deltaY) / 10) * 10;
+        const newX = Math.round((draggingWaypoint.startPos.x + deltaX) / gridStep) * gridStep;
+        const newY = Math.round((draggingWaypoint.startPos.y + deltaY) / gridStep) * gridStep;
 
         const updatedConnections = (activeDraft.connections || []).map((c) => {
           if (c.id !== draggingWaypoint.connId) return c;
           const currentWaypoints = [...(c.waypoints || [])];
-          if (currentWaypoints.length === 0) {
-            currentWaypoints.push({ x: newX, y: newY });
-          } else {
-            currentWaypoints[draggingWaypoint.waypointIndex] = { x: newX, y: newY };
+          if (currentWaypoints.length === 0 || draggingWaypoint.isPendingInsert) {
+            return { ...c, waypoints: [{ x: newX, y: newY }] };
           }
+          currentWaypoints[draggingWaypoint.waypointIndex] = { x: newX, y: newY };
           return { ...c, waypoints: currentWaypoints };
         });
 
@@ -1345,20 +1578,39 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({ spo, onChange }) =
         return;
       }
 
+      if (draggingEndpoint && canvasContainerRef.current) {
+        const rect = canvasContainerRef.current.getBoundingClientRect();
+        const cx = (e.clientX - rect.left) / scale;
+        const cy = (e.clientY - rect.top) / scale;
+        const snap = findNearestPortOnCanvas(cx, cy, draggingEndpoint.fixedNodeId);
+        setSnappedTarget(snap ? { nodeId: snap.nodeId, handle: snap.handle } : null);
+        setDraggingEndpoint((prev) =>
+          prev ? { ...prev, mousePos: snap ? snap.pt : { x: cx, y: cy } } : null
+        );
+        return;
+      }
+
       if (connectSourceId && canvasContainerRef.current) {
         const rect = canvasContainerRef.current.getBoundingClientRect();
-        setConnectMousePos({
-          x: (e.clientX - rect.left) / scale,
-          y: (e.clientY - rect.top) / scale,
-        });
+        const cx = (e.clientX - rect.left) / scale;
+        const cy = (e.clientY - rect.top) / scale;
+        const snap = findNearestPortOnCanvas(cx, cy, connectSourceId);
+        setSnappedTarget(snap ? { nodeId: snap.nodeId, handle: snap.handle } : null);
+        setConnectMousePos(snap ? snap.pt : { x: cx, y: cy });
       }
     };
 
-    const handleMouseUp = () => {
+    const handleMouseUp = (e: MouseEvent) => {
       if (draggingNodeId || resizingNode || draggingWaypoint) {
         const finishedDraft = draftModelRef.current;
         const beforeDrag = preDragModelRef.current;
-        if (finishedDraft && beforeDrag && JSON.stringify(finishedDraft) !== JSON.stringify(beforeDrag)) {
+        const didActuallyEdit = !draggingWaypoint || waypointMovedRef.current;
+        if (
+          didActuallyEdit &&
+          finishedDraft &&
+          beforeDrag &&
+          JSON.stringify(finishedDraft) !== JSON.stringify(beforeDrag)
+        ) {
           setHistoryPast((prev) => [...prev.slice(-(MAX_HISTORY - 1)), beforeDrag]);
           setHistoryFuture([]);
           pushModel(finishedDraft);
@@ -1368,6 +1620,57 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({ spo, onChange }) =
         setDraftModel(null);
         setAlignmentGuides({ x: null, y: null });
       }
+
+      const pinAlreadyHandled = handledPinMouseUpRef.current;
+      handledPinMouseUpRef.current = false;
+
+      if (draggingEndpoint) {
+        if (!pinAlreadyHandled && snappedTarget && snappedTarget.nodeId !== draggingEndpoint.fixedNodeId) {
+          const updatedConns = connections.map((c) => {
+            if (c.id !== draggingEndpoint.connId) return c;
+            return draggingEndpoint.end === 'target'
+              ? {
+                  ...c,
+                  targetId: snappedTarget.nodeId,
+                  targetHandle: snappedTarget.handle,
+                  waypoints: undefined,
+                  segmentOffset: 0,
+                }
+              : {
+                  ...c,
+                  sourceId: snappedTarget.nodeId,
+                  sourceHandle: snappedTarget.handle,
+                  waypoints: undefined,
+                  segmentOffset: 0,
+                };
+          });
+          commitModelChange({ ...flowchartModel, connections: updatedConns });
+          showToast('Posisi sambungan panah diperbarui.');
+        }
+        setDraggingEndpoint(null);
+        setSnappedTarget(null);
+      }
+
+      if (isDragConnectingRef.current && connectSourceId) {
+        const startM = connectDragStartMouseRef.current;
+        const dragDist = startM ? Math.hypot(e.clientX - startM.x, e.clientY - startM.y) : 0;
+        isDragConnectingRef.current = false;
+        connectDragStartMouseRef.current = null;
+
+        if (!pinAlreadyHandled && dragDist > 6) {
+          skipNextPinClickRef.current = true;
+          if (snappedTarget && snappedTarget.nodeId !== connectSourceId) {
+            handleFinishConnect(snappedTarget.nodeId, snappedTarget.handle);
+          } else {
+            setConnectSourceId(null);
+            setConnectMousePos(null);
+            setSnappedTarget(null);
+            setActiveTool('select');
+          }
+        }
+      }
+
+      waypointMovedRef.current = false;
       setDraggingNodeId(null);
       setResizingNode(null);
       setDraggingWaypoint(null);
@@ -1392,8 +1695,16 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({ spo, onChange }) =
     dragStartMouse,
     dragStartNodePos,
     draggingWaypoint,
+    draggingEndpoint,
     connectSourceId,
+    snappedTarget,
+    connections,
+    flowchartModel,
+    findNearestPortOnCanvas,
+    handleFinishConnect,
+    commitModelChange,
     pushModel,
+    showToast,
   ]);
 
   // ==============================================================
@@ -2075,7 +2386,7 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({ spo, onChange }) =
                     if (!sourceNode || !targetNode) return null;
 
                     const isSelected = conn.id === selectedConnectionId;
-                    const { pathD, midWaypoint } = computeConnectionGeometry(
+                    const { startPt, endPt, pathD, midWaypoint } = computeConnectionGeometry(
                       conn,
                       sourceNode,
                       targetNode,
@@ -2110,7 +2421,7 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({ spo, onChange }) =
                           onDoubleClick={selectAndFocusLabel}
                           onMouseDown={(e) => handleMouseDownArrowLine(e, conn, midWaypoint)}
                         >
-                          <title>Klik untuk pilih, tarik untuk geser, atau klik 2x untuk edit label</title>
+                          <title>Klik untuk pilih, tarik untuk geser belokan, atau klik 2x untuk edit label</title>
                         </path>
 
                         {/* Visible Arrow Line */}
@@ -2135,7 +2446,66 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({ spo, onChange }) =
                           onMouseDown={(e) => handleMouseDownArrowLine(e, conn, midWaypoint)}
                         />
 
-                        {/* Draggable Waypoint Handles */}
+                        {/* Arrow Label Badge (pointer-events-none wrapper so it never blocks midpoint drag!) */}
+                        {conn.label && (
+                          <foreignObject
+                            x={midWaypoint.x - 54}
+                            y={midWaypoint.y - 26}
+                            width="108"
+                            height="24"
+                            className="overflow-visible pointer-events-none"
+                          >
+                            <div className="flex items-center justify-center">
+                              <span
+                                onMouseDown={(e) => handleMouseDownArrowLine(e, conn, midWaypoint)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setSelectedConnectionId(conn.id);
+                                  setSelectedNodeId(null);
+                                }}
+                                onDoubleClick={selectAndFocusLabel}
+                                title="Tarik untuk geser jalur, atau klik 2x untuk ubah teks label"
+                                className={`pointer-events-auto text-[10px] font-bold px-2 py-0.5 rounded-full shadow-2xs border cursor-move ${
+                                  conn.label.toLowerCase().includes('tidak')
+                                    ? 'bg-rose-50 text-rose-700 border-rose-300'
+                                    : conn.label.toLowerCase().includes('ya')
+                                    ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                                    : 'bg-white text-slate-700 border-slate-300'
+                                } ${isSelected ? 'ring-2 ring-[#0078d4]/40' : ''}`}
+                              >
+                                {conn.label}
+                              </span>
+                            </div>
+                          </foreignObject>
+                        )}
+
+                        {/* Quick Delete Button on Arrow (offset away from midWaypoint so it never steals drag!) */}
+                        <foreignObject
+                          x={midWaypoint.x + (conn.label ? 38 : 16)}
+                          y={midWaypoint.y - 24}
+                          width="22"
+                          height="22"
+                          className="overflow-visible pointer-events-none z-30"
+                        >
+                          <button
+                            type="button"
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteConnection(conn.id);
+                            }}
+                            className={`no-print w-5 h-5 rounded-full flex items-center justify-center transition-all cursor-pointer shadow-2xs border ${
+                              isSelected
+                                ? 'pointer-events-auto bg-rose-600 hover:bg-rose-700 text-white border-rose-700 opacity-100'
+                                : 'pointer-events-none group-hover:pointer-events-auto bg-white hover:bg-rose-600 text-slate-400 hover:text-white border-slate-300 hover:border-rose-600 opacity-0 group-hover:opacity-100'
+                            }`}
+                            title="Hapus panah ini"
+                          >
+                            <Trash2 className="w-2.5 h-2.5" />
+                          </button>
+                        </foreignObject>
+
+                        {/* Draggable Waypoint Handles (rendered on top so always grabbable) */}
                         {conn.waypoints && conn.waypoints.length > 0 ? (
                           conn.waypoints.map((wp, wIdx) => (
                             <g key={`wp-${conn.id}-${wIdx}`} className="cursor-move">
@@ -2143,9 +2513,10 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({ spo, onChange }) =
                                 <circle
                                   cx={wp.x}
                                   cy={wp.y}
-                                  r={11}
+                                  r={12}
                                   fill="#0078d4"
-                                  fillOpacity="0.22"
+                                  fillOpacity="0.2"
+                                  pointerEvents="none"
                                 />
                               )}
                               <circle
@@ -2168,9 +2539,10 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({ spo, onChange }) =
                               <circle
                                 cx={midWaypoint.x}
                                 cy={midWaypoint.y}
-                                r={10}
+                                r={11}
                                 fill="#0078d4"
-                                fillOpacity="0.22"
+                                fillOpacity="0.2"
+                                pointerEvents="none"
                               />
                             )}
                             <circle
@@ -2184,78 +2556,79 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({ spo, onChange }) =
                               style={{ opacity: isSelected ? 1 : undefined }}
                               onMouseDown={(e) => handleMouseDownArrowLine(e, conn, midWaypoint)}
                             >
-                              <title>Tarik untuk membelokkan jalur panah</title>
+                              <title>Tarik titik biru untuk membelokkan jalur panah</title>
                             </circle>
                           </g>
                         )}
 
-                        {/* Arrow Label Badge (double-click to edit) */}
-                        {conn.label && (
-                          <foreignObject
-                            x={midWaypoint.x - 54}
-                            y={midWaypoint.y - 12}
-                            width="108"
-                            height="24"
-                            className="overflow-visible pointer-events-auto"
-                          >
-                            <div className="flex items-center justify-center">
-                              <span
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setSelectedConnectionId(conn.id);
-                                  setSelectedNodeId(null);
-                                }}
-                                onDoubleClick={selectAndFocusLabel}
-                                title="Klik 2x untuk ubah teks label panah"
-                                className={`text-[10px] font-bold px-2 py-0.5 rounded-full shadow-2xs border cursor-pointer ${
-                                  conn.label.toLowerCase().includes('tidak')
-                                    ? 'bg-rose-50 text-rose-700 border-rose-300'
-                                    : conn.label.toLowerCase().includes('ya')
-                                    ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
-                                    : 'bg-white text-slate-700 border-slate-300'
-                                } ${isSelected ? 'ring-2 ring-[#0078d4]/40' : ''}`}
-                              >
-                                {conn.label}
-                              </span>
-                            </div>
-                          </foreignObject>
+                        {/* Draggable Source & Target Endpoint Handles when Arrow Selected */}
+                        {isSelected && (
+                          <>
+                            <circle
+                              cx={startPt.x}
+                              cy={startPt.y}
+                              r={6.5}
+                              fill="#10b981"
+                              stroke="#ffffff"
+                              strokeWidth="2"
+                              className="cursor-crosshair hover:scale-125 transition-transform drop-shadow-sm"
+                              onMouseDown={(e) => handleMouseDownEndpoint(e, conn, 'source', startPt)}
+                            >
+                              <title>Tarik pangkal panah untuk pindah port/simbol asal</title>
+                            </circle>
+                            <circle
+                              cx={endPt.x}
+                              cy={endPt.y}
+                              r={6.5}
+                              fill="#f59e0b"
+                              stroke="#ffffff"
+                              strokeWidth="2"
+                              className="cursor-crosshair hover:scale-125 transition-transform drop-shadow-sm"
+                              onMouseDown={(e) => handleMouseDownEndpoint(e, conn, 'target', endPt)}
+                            >
+                              <title>Tarik ujung kepala panah untuk arahkan ke port/simbol lain</title>
+                            </circle>
+                          </>
                         )}
-
-                        {/* Quick Delete Button on Arrow */}
-                        <foreignObject
-                          x={midWaypoint.x + (conn.label ? 30 : -10)}
-                          y={midWaypoint.y - 11}
-                          width="22"
-                          height="22"
-                          className="overflow-visible pointer-events-auto z-30"
-                        >
-                          <button
-                            type="button"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              handleDeleteConnection(conn.id);
-                            }}
-                            className={`no-print w-5 h-5 rounded-full flex items-center justify-center transition-all cursor-pointer shadow-2xs border ${
-                              isSelected
-                                ? 'bg-rose-600 hover:bg-rose-700 text-white border-rose-700 opacity-100'
-                                : 'bg-white hover:bg-rose-600 text-slate-400 hover:text-white border-slate-300 hover:border-rose-600 opacity-0 group-hover:opacity-100'
-                            }`}
-                            title="Hapus panah ini"
-                          >
-                            <Trash2 className="w-2.5 h-2.5" />
-                          </button>
-                        </foreignObject>
                       </g>
                     );
                   })}
 
-                  {/* Temporary Drawing Arrow from exact source pin port */}
+                  {/* Temporary Drawing Arrow from exact source pin port (or endpoint re-attach preview) */}
                   {connectSourceId && connectMousePos && (
                     <g className="pointer-events-none">
                       {(() => {
                         const sNode = nodes.find((n) => n.id === connectSourceId);
                         if (!sNode) return null;
                         const sPt = getPortPoint(sNode, connectSourceHandle);
+                        if (snappedTarget) {
+                          const tNode = nodes.find((n) => n.id === snappedTarget.nodeId);
+                          if (tNode) {
+                            const previewGeom = computeConnectionGeometry(
+                              {
+                                id: '__preview__',
+                                sourceId: sNode.id,
+                                targetId: tNode.id,
+                                sourceHandle: connectSourceHandle,
+                                targetHandle: snappedTarget.handle,
+                                routingType: 'orthogonal',
+                              },
+                              sNode,
+                              tNode,
+                              connections
+                            );
+                            return (
+                              <path
+                                d={previewGeom.pathD}
+                                fill="none"
+                                stroke="#059669"
+                                strokeWidth="3"
+                                strokeDasharray="6,4"
+                                markerEnd="url(#bpmn-arrowhead-selected)"
+                              />
+                            );
+                          }
+                        }
                         return (
                           <line
                             x1={sPt.x}
@@ -2271,11 +2644,84 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({ spo, onChange }) =
                       })()}
                     </g>
                   )}
+
+                  {draggingEndpoint && (
+                    <g className="pointer-events-none">
+                      {(() => {
+                        const conn = connections.find((c) => c.id === draggingEndpoint.connId);
+                        if (!conn) return null;
+                        const fixedNode = nodes.find((n) => n.id === draggingEndpoint.fixedNodeId);
+                        if (!fixedNode) return null;
+                        const fixedHandle =
+                          draggingEndpoint.end === 'target'
+                            ? conn.sourceHandle || 'bottom'
+                            : conn.targetHandle || 'top';
+
+                        if (snappedTarget && snappedTarget.nodeId !== draggingEndpoint.fixedNodeId) {
+                          const snapNode = nodes.find((n) => n.id === snappedTarget.nodeId);
+                          if (snapNode) {
+                            const sNode = draggingEndpoint.end === 'target' ? fixedNode : snapNode;
+                            const tNode = draggingEndpoint.end === 'target' ? snapNode : fixedNode;
+                            const previewGeom = computeConnectionGeometry(
+                              {
+                                id: '__endpoint_preview__',
+                                sourceId: sNode.id,
+                                targetId: tNode.id,
+                                sourceHandle:
+                                  draggingEndpoint.end === 'target' ? fixedHandle : snappedTarget.handle,
+                                targetHandle:
+                                  draggingEndpoint.end === 'target' ? snappedTarget.handle : fixedHandle,
+                                routingType: conn.routingType || 'orthogonal',
+                              },
+                              sNode,
+                              tNode,
+                              connections
+                            );
+                            return (
+                              <path
+                                d={previewGeom.pathD}
+                                fill="none"
+                                stroke="#059669"
+                                strokeWidth="3"
+                                strokeDasharray="6,4"
+                                markerEnd="url(#bpmn-arrowhead-selected)"
+                              />
+                            );
+                          }
+                        }
+
+                        const fixedPt = getPortPoint(fixedNode, fixedHandle);
+                        const x1 = draggingEndpoint.end === 'target' ? fixedPt.x : draggingEndpoint.mousePos.x;
+                        const y1 = draggingEndpoint.end === 'target' ? fixedPt.y : draggingEndpoint.mousePos.y;
+                        const x2 = draggingEndpoint.end === 'target' ? draggingEndpoint.mousePos.x : fixedPt.x;
+                        const y2 = draggingEndpoint.end === 'target' ? draggingEndpoint.mousePos.y : fixedPt.y;
+                        return (
+                          <line
+                            x1={x1}
+                            y1={y1}
+                            x2={x2}
+                            y2={y2}
+                            stroke="#f59e0b"
+                            strokeWidth="3"
+                            strokeDasharray="6,4"
+                            markerEnd="url(#bpmn-arrowhead-selected)"
+                          />
+                        );
+                      })()}
+                    </g>
+                  )}
                 </svg>
 
                 {/* NODE ELEMENTS LAYER */}
                 {nodes.map((node) => {
                   const isSelected = node.id === selectedNodeId;
+                  const isConnectCandidate =
+                    (activeTool === 'connect' &&
+                      Boolean(connectSourceId) &&
+                      connectSourceId !== node.id) ||
+                    (draggingEndpoint !== null && draggingEndpoint.fixedNodeId !== node.id);
+                  const nodeSnappedPort =
+                    snappedTarget && snappedTarget.nodeId === node.id ? snappedTarget.handle : null;
                   return (
                     <div
                       key={node.id}
@@ -2300,11 +2746,8 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({ spo, onChange }) =
                         isSelected={isSelected}
                         isConnectSource={connectSourceId === node.id}
                         isDirectEditMode={isDirectEditMode}
-                        isConnectMode={
-                          activeTool === 'connect' &&
-                          Boolean(connectSourceId) &&
-                          connectSourceId !== node.id
-                        }
+                        isConnectMode={isConnectCandidate}
+                        snappedPort={nodeSnappedPort}
                         onSelect={() => {
                           setSelectedNodeId(node.id);
                           setSelectedConnectionId(null);
@@ -2319,6 +2762,8 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({ spo, onChange }) =
                         onDeleteNode={() => handleDeleteNode(node.id)}
                         onDuplicateNode={handleDuplicateNode}
                         onStartConnect={handleStartConnect}
+                        onPinMouseDown={handlePinMouseDown}
+                        onPinMouseUp={handlePinMouseUp}
                         onPinClick={handlePinClick}
                         onStartResize={handleStartResize}
                         onQuickAppend={handleQuickAppend}
@@ -2714,8 +3159,22 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({ spo, onChange }) =
               {!selectedNode && selectedConnection && (() => {
                 const src = nodes.find((n) => n.id === selectedConnection.sourceId);
                 const tgt = nodes.find((n) => n.id === selectedConnection.targetId);
+                const connGeom =
+                  src && tgt
+                    ? computeConnectionGeometry(selectedConnection, src, tgt, connections)
+                    : null;
+                const activeSourcePort =
+                  selectedConnection.sourceHandle || connGeom?.effectiveSourceHandle || 'bottom';
+                const activeTargetPort =
+                  selectedConnection.targetHandle || connGeom?.effectiveTargetHandle || 'top';
                 return (
                   <>
+                    {/* Quick Canvas Tip */}
+                    <div className="p-2 rounded-lg bg-blue-50/80 border border-blue-200 text-[11px] text-blue-900 leading-snug">
+                      Tarik titik <span className="font-bold text-emerald-700">hijau</span> (pangkal) atau{' '}
+                      <span className="font-bold text-amber-700">kuning</span> (kepala panah) langsung di kanvas untuk mengarahkan panah ke sisi simbol mana saja.
+                    </div>
+
                     {/* Route Summary + Reverse Direction */}
                     <div className="p-2.5 bg-slate-50 rounded-lg border border-slate-200 space-y-2">
                       <div className="text-[11px] text-slate-700 leading-snug">
@@ -2851,7 +3310,7 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({ spo, onChange }) =
                         <div className="grid grid-cols-2 gap-1">
                           {(['top', 'right', 'bottom', 'left'] as const).map((h) => {
                             const names = { top: 'Atas', right: 'Kanan', bottom: 'Bawah', left: 'Kiri' };
-                            const active = (selectedConnection.sourceHandle || 'bottom') === h;
+                            const active = activeSourcePort === h;
                             return (
                               <button
                                 key={h}
@@ -2876,7 +3335,7 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({ spo, onChange }) =
                         <div className="grid grid-cols-2 gap-1">
                           {(['top', 'right', 'bottom', 'left'] as const).map((h) => {
                             const names = { top: 'Atas', right: 'Kanan', bottom: 'Bawah', left: 'Kiri' };
-                            const active = (selectedConnection.targetHandle || 'top') === h;
+                            const active = activeTargetPort === h;
                             return (
                               <button
                                 key={h}
@@ -2935,7 +3394,12 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({ spo, onChange }) =
                           <div className="flex items-center space-x-1">
                             <button
                               type="button"
-                              onClick={() => handleAddConnectionWaypoint(selectedConnection.id)}
+                              onClick={() =>
+                                handleAddConnectionWaypoint(
+                                  selectedConnection.id,
+                                  connGeom?.midWaypoint
+                                )
+                              }
                               className="px-2 py-0.5 rounded border border-slate-200 bg-white hover:bg-slate-50 text-[11px] font-semibold cursor-pointer"
                             >
                               + Titik
@@ -2952,7 +3416,14 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({ spo, onChange }) =
                         <div className="grid grid-cols-4 gap-1">
                           <button
                             type="button"
-                            onClick={() => handleNudgeConnection(selectedConnection.id, -20, 0)}
+                            onClick={() =>
+                              handleNudgeConnection(
+                                selectedConnection.id,
+                                -20,
+                                0,
+                                connGeom?.midWaypoint
+                              )
+                            }
                             className="p-1.5 rounded border border-slate-200 bg-white hover:bg-slate-50 flex items-center justify-center cursor-pointer"
                             title="Geser belokan ke kiri"
                           >
@@ -2960,7 +3431,14 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({ spo, onChange }) =
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleNudgeConnection(selectedConnection.id, 20, 0)}
+                            onClick={() =>
+                              handleNudgeConnection(
+                                selectedConnection.id,
+                                20,
+                                0,
+                                connGeom?.midWaypoint
+                              )
+                            }
                             className="p-1.5 rounded border border-slate-200 bg-white hover:bg-slate-50 flex items-center justify-center cursor-pointer"
                             title="Geser belokan ke kanan"
                           >
@@ -2968,7 +3446,14 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({ spo, onChange }) =
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleNudgeConnection(selectedConnection.id, 0, -20)}
+                            onClick={() =>
+                              handleNudgeConnection(
+                                selectedConnection.id,
+                                0,
+                                -20,
+                                connGeom?.midWaypoint
+                              )
+                            }
                             className="p-1.5 rounded border border-slate-200 bg-white hover:bg-slate-50 flex items-center justify-center cursor-pointer"
                             title="Geser belokan ke atas"
                           >
@@ -2976,7 +3461,14 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({ spo, onChange }) =
                           </button>
                           <button
                             type="button"
-                            onClick={() => handleNudgeConnection(selectedConnection.id, 0, 20)}
+                            onClick={() =>
+                              handleNudgeConnection(
+                                selectedConnection.id,
+                                0,
+                                20,
+                                connGeom?.midWaypoint
+                              )
+                            }
                             className="p-1.5 rounded border border-slate-200 bg-white hover:bg-slate-50 flex items-center justify-center cursor-pointer"
                             title="Geser belokan ke bawah"
                           >
@@ -3200,7 +3692,7 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({ spo, onChange }) =
                   {nodes.map((n, i) => (
                     <option key={`src-${n.id}`} value={n.id}>
                       {i + 1}. [{n.type.toUpperCase()}] {n.label} (
-                      {lanes.find((l) => l.id === n.lane)?.name || actors[n.lane] || n.lane})
+                      {lanes.find((l) => l.id === n.lane)?.name || actors?.[n.lane] || n.lane})
                     </option>
                   ))}
                 </select>
@@ -3219,7 +3711,7 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({ spo, onChange }) =
                   {nodes.map((n, i) => (
                     <option key={`tgt-${n.id}`} value={n.id}>
                       {i + 1}. [{n.type.toUpperCase()}] {n.label} (
-                      {lanes.find((l) => l.id === n.lane)?.name || actors[n.lane] || n.lane})
+                      {lanes.find((l) => l.id === n.lane)?.name || actors?.[n.lane] || n.lane})
                     </option>
                   ))}
                 </select>
