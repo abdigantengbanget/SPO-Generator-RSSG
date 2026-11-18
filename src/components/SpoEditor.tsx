@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   SpoDocument,
   DefinisiItem,
@@ -6,7 +6,7 @@ import {
   RiskRegisterItem,
   ProsedurItem,
   TanggungJawabUnitItem,
-} from '../types/spo';
+} from "../types/spo";
 import {
   Plus,
   Trash2,
@@ -15,23 +15,21 @@ import {
   Clock,
   Building2,
   Layers,
-  Sparkles,
-} from 'lucide-react';
-import { formatSpoVersionLabel } from '../utils/spoFormatHelper';
-import { buildFlowchartModelFromSpo } from '../utils/flowchartHelper';
+} from "lucide-react";
+import { formatSpoVersionLabel } from "../utils/spoFormatHelper";
+import { buildFlowchartModelFromSpo } from "../utils/flowchartHelper";
 
 export type EditorTab =
-  | 'metadata'
-  | 'pengertian'
-  | 'tujuan_kebijakan'
-  | 'risiko'
-  | 'prosedur'
-  | 'unit_dokumen';
+  | "metadata"
+  | "pengertian"
+  | "tujuan_kebijakan"
+  | "risiko"
+  | "prosedur"
+  | "unit_dokumen";
 
 interface SpoEditorProps {
   spo: SpoDocument;
   onChange: (updated: SpoDocument) => void;
-  onRefineSection: (sectionId: string, currentContent: any) => void;
   activeTab?: EditorTab;
   onTabChange?: (tab: EditorTab) => void;
 }
@@ -39,11 +37,10 @@ interface SpoEditorProps {
 export const SpoEditor: React.FC<SpoEditorProps> = ({
   spo,
   onChange,
-  onRefineSection,
   activeTab: controlledTab,
   onTabChange,
 }) => {
-  const [internalTab, setInternalTab] = useState<EditorTab>('metadata');
+  const [internalTab, setInternalTab] = useState<EditorTab>("metadata");
   const activeTab = controlledTab || internalTab;
   const setActiveTab = (tab: EditorTab) => {
     if (onTabChange) {
@@ -62,15 +59,19 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
 
     let nextFormulirPendukung = spo.formulirPendukung;
     if (
-      (field === 'noRevisi' || field === 'tanggalTerbit') &&
+      (field === "noRevisi" || field === "tanggalTerbit") &&
       spo.formulirPendukung?.riwayatPerubahan?.length > 0
     ) {
       const updatedRiwayat = [...spo.formulirPendukung.riwayatPerubahan];
       const lastIdx = updatedRiwayat.length - 1;
       updatedRiwayat[lastIdx] = {
         ...updatedRiwayat[lastIdx],
-        ...(field === 'tanggalTerbit' ? { tanggal: String(value || '').trim() || '-' } : {}),
-        ...(field === 'noRevisi' ? { versi: formatSpoVersionLabel(String(value || '')) } : {}),
+        ...(field === "tanggalTerbit"
+          ? { tanggal: String(value || "").trim() || "-" }
+          : {}),
+        ...(field === "noRevisi"
+          ? { versi: formatSpoVersionLabel(String(value || "")) }
+          : {}),
       };
       nextFormulirPendukung = {
         ...spo.formulirPendukung,
@@ -85,7 +86,11 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
     });
   };
 
-  const updateApproval = (role: 'drafter' | 'creator' | 'reviewer', key: 'nama' | 'jabatan', val: string) => {
+  const updateApproval = (
+    role: "drafter" | "creator" | "reviewer",
+    key: "nama" | "jabatan",
+    val: string,
+  ) => {
     onChange({
       ...spo,
       metadata: {
@@ -99,7 +104,11 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
   };
 
   // Definisi helpers
-  const handleDefinisiChange = (index: number, key: keyof DefinisiItem, value: string) => {
+  const handleDefinisiChange = (
+    index: number,
+    key: keyof DefinisiItem,
+    value: string,
+  ) => {
     const updated = [...spo.pengertian.definisi];
     updated[index] = { ...updated[index], [key]: value };
     onChange({
@@ -118,7 +127,10 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
         ...spo.pengertian,
         definisi: [
           ...spo.pengertian.definisi,
-          { istilah: 'Istilah Baru', penjelasan: 'Penjelasan definisi operasional.' },
+          {
+            istilah: "Istilah Baru",
+            penjelasan: "Penjelasan definisi operasional.",
+          },
         ],
       },
     });
@@ -170,7 +182,10 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
         ...spo.pengertian,
         ruangLingkup: {
           ...spo.pengertian.ruangLingkup,
-          unitList: [...spo.pengertian.ruangLingkup.unitList, 'Unit / Instalasi Baru'],
+          unitList: [
+            ...spo.pengertian.ruangLingkup.unitList,
+            "Unit / Instalasi Baru",
+          ],
         },
       },
     });
@@ -183,14 +198,20 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
         ...spo.pengertian,
         ruangLingkup: {
           ...spo.pengertian.ruangLingkup,
-          unitList: spo.pengertian.ruangLingkup.unitList.filter((_, i) => i !== index),
+          unitList: spo.pengertian.ruangLingkup.unitList.filter(
+            (_, i) => i !== index,
+          ),
         },
       },
     });
   };
 
   // Tujuan helpers
-  const handleTujuanChange = (index: number, key: keyof TujuanItem, val: string) => {
+  const handleTujuanChange = (
+    index: number,
+    key: keyof TujuanItem,
+    val: string,
+  ) => {
     const updated = [...spo.tujuan];
     updated[index] = { ...updated[index], [key]: val };
     onChange({ ...spo, tujuan: updated });
@@ -201,7 +222,10 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
       ...spo,
       tujuan: [
         ...spo.tujuan,
-        { judulTujuan: 'Sasaran Baru', deskripsi: 'Deskripsi target pencapaian operasional.' },
+        {
+          judulTujuan: "Sasaran Baru",
+          deskripsi: "Deskripsi target pencapaian operasional.",
+        },
       ],
     });
   };
@@ -230,7 +254,7 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
         ...spo.kebijakan,
         ketentuan: [
           ...spo.kebijakan.ketentuan,
-          'Klausul kebijakan baru yang mengatur kepatuhan operasional.',
+          "Klausul kebijakan baru yang mengatur kepatuhan operasional.",
         ],
       },
     });
@@ -247,7 +271,11 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
   };
 
   // Risk Register helpers
-  const handleRiskChange = (index: number, key: keyof RiskRegisterItem, val: any) => {
+  const handleRiskChange = (
+    index: number,
+    key: keyof RiskRegisterItem,
+    val: any,
+  ) => {
     const updated = [...spo.kebijakan.riskRegister];
     updated[index] = { ...updated[index], [key]: val };
     onChange({
@@ -266,10 +294,10 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
           ...spo.kebijakan.riskRegister,
           {
             kode: newCode,
-            proses: 'Tahap Pelayanan Baru',
-            namaRisiko: 'Risiko Ketidaksesuaian Prosedur',
-            deskripsiRisiko: 'Deskripsi potensi kegagalan atau insiden.',
-            mitigasi: ['Langkah pencegahan dan kontrol kepatuhan.'],
+            proses: "Tahap Pelayanan Baru",
+            namaRisiko: "Risiko Ketidaksesuaian Prosedur",
+            deskripsiRisiko: "Deskripsi potensi kegagalan atau insiden.",
+            mitigasi: ["Langkah pencegahan dan kontrol kepatuhan."],
           },
         ],
       },
@@ -307,20 +335,26 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
     nextDoc.alurFlowchart = rebuiltModel.nodes.map((node, idx) => ({
       id: node.id || `step-${idx + 1}`,
       tipe:
-        node.type === 'terminator' || node.type === 'start'
-          ? 'start'
-          : node.type === 'end'
-          ? 'end'
-          : node.type === 'decision' || node.type === 'gateway'
-          ? 'decision'
-          : 'process',
+        node.type === "terminator" || node.type === "start"
+          ? "start"
+          : node.type === "end"
+            ? "end"
+            : node.type === "decision" || node.type === "gateway"
+              ? "decision"
+              : "process",
       label: node.label,
-      ...(node.type === 'decision' ? { kondisiYa: 'Ya', kondisiTidak: 'Tidak' } : {}),
+      ...(node.type === "decision"
+        ? { kondisiYa: "Ya", kondisiTidak: "Tidak" }
+        : {}),
     }));
     onChange(nextDoc);
   };
 
-  const handleProsedurChange = (index: number, key: keyof ProsedurItem, val: any) => {
+  const handleProsedurChange = (
+    index: number,
+    key: keyof ProsedurItem,
+    val: any,
+  ) => {
     const updated = [...spo.prosedur];
     updated[index] = { ...updated[index], [key]: val };
     syncProsedurAndFlowchart(updated);
@@ -332,10 +366,10 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
       ...spo.prosedur,
       {
         noProses: newNo,
-        judulTahapan: 'TAHAPAN PROSEDUR BARU',
-        langkah: ['Petugas melakukan instruksi verifikasi awal.'],
-        leadTime: '5 Menit',
-        pelaksana: 'Petugas Terkait',
+        judulTahapan: "TAHAPAN PROSEDUR BARU",
+        langkah: ["Petugas melakukan instruksi verifikasi awal."],
+        leadTime: "5 Menit",
+        pelaksana: "Petugas Terkait",
       },
     ]);
   };
@@ -349,11 +383,11 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
       {/* Editor Navigation Tabs */}
       <div className="bg-white rounded-xl shadow-xs border border-slate-200 mb-6 p-1.5 flex flex-wrap gap-1">
         <button
-          onClick={() => setActiveTab('metadata')}
+          onClick={() => setActiveTab("metadata")}
           className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
-            activeTab === 'metadata'
-              ? 'bg-emerald-600 text-white shadow-xs'
-              : 'text-slate-600 hover:bg-slate-100'
+            activeTab === "metadata"
+              ? "bg-emerald-600 text-white shadow-xs"
+              : "text-slate-600 hover:bg-slate-100"
           }`}
         >
           <Building2 className="w-4 h-4" />
@@ -361,11 +395,11 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
         </button>
 
         <button
-          onClick={() => setActiveTab('pengertian')}
+          onClick={() => setActiveTab("pengertian")}
           className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
-            activeTab === 'pengertian'
-              ? 'bg-emerald-600 text-white shadow-xs'
-              : 'text-slate-600 hover:bg-slate-100'
+            activeTab === "pengertian"
+              ? "bg-emerald-600 text-white shadow-xs"
+              : "text-slate-600 hover:bg-slate-100"
           }`}
         >
           <Layers className="w-4 h-4" />
@@ -373,11 +407,11 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
         </button>
 
         <button
-          onClick={() => setActiveTab('tujuan_kebijakan')}
+          onClick={() => setActiveTab("tujuan_kebijakan")}
           className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
-            activeTab === 'tujuan_kebijakan'
-              ? 'bg-emerald-600 text-white shadow-xs'
-              : 'text-slate-600 hover:bg-slate-100'
+            activeTab === "tujuan_kebijakan"
+              ? "bg-emerald-600 text-white shadow-xs"
+              : "text-slate-600 hover:bg-slate-100"
           }`}
         >
           <FileCheck className="w-4 h-4" />
@@ -385,11 +419,11 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
         </button>
 
         <button
-          onClick={() => setActiveTab('risiko')}
+          onClick={() => setActiveTab("risiko")}
           className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
-            activeTab === 'risiko'
-              ? 'bg-emerald-600 text-white shadow-xs'
-              : 'text-slate-600 hover:bg-slate-100'
+            activeTab === "risiko"
+              ? "bg-emerald-600 text-white shadow-xs"
+              : "text-slate-600 hover:bg-slate-100"
           }`}
         >
           <ShieldAlert className="w-4 h-4" />
@@ -397,11 +431,11 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
         </button>
 
         <button
-          onClick={() => setActiveTab('prosedur')}
+          onClick={() => setActiveTab("prosedur")}
           className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
-            activeTab === 'prosedur'
-              ? 'bg-emerald-600 text-white shadow-xs'
-              : 'text-slate-600 hover:bg-slate-100'
+            activeTab === "prosedur"
+              ? "bg-emerald-600 text-white shadow-xs"
+              : "text-slate-600 hover:bg-slate-100"
           }`}
         >
           <Clock className="w-4 h-4" />
@@ -409,11 +443,11 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
         </button>
 
         <button
-          onClick={() => setActiveTab('unit_dokumen')}
+          onClick={() => setActiveTab("unit_dokumen")}
           className={`flex items-center space-x-2 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
-            activeTab === 'unit_dokumen'
-              ? 'bg-emerald-600 text-white shadow-xs'
-              : 'text-slate-600 hover:bg-slate-100'
+            activeTab === "unit_dokumen"
+              ? "bg-emerald-600 text-white shadow-xs"
+              : "text-slate-600 hover:bg-slate-100"
           }`}
         >
           <Building2 className="w-4 h-4" />
@@ -424,15 +458,18 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
       {/* TAB CONTENT */}
 
       {/* TAB 1: METADATA, KOP, DAN PENGESAHAN */}
-      {activeTab === 'metadata' && (
+      {activeTab === "metadata" && (
         <div className="space-y-6">
           {/* Card: Header Dokumen (KOP) */}
           <div className="bg-white rounded-xl shadow-xs border border-slate-200 p-6">
             <div className="flex items-center justify-between pb-4 border-b border-slate-200 mb-5">
               <div>
-                <h3 className="text-base font-bold text-slate-900">Bagian Kop Header SPO</h3>
+                <h3 className="text-base font-bold text-slate-900">
+                  Bagian Kop Header SPO
+                </h3>
                 <p className="text-xs text-slate-500">
-                  Data judul, penomoran dokumen, tanggal terbit, dan pengesahan penetapan kepala RS
+                  Data judul, penomoran dokumen, tanggal terbit, dan pengesahan
+                  penetapan kepala RS
                 </p>
               </div>
               <span className="px-2.5 py-1 text-xs font-medium rounded-full bg-slate-100 text-slate-700">
@@ -451,10 +488,13 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
               <div className="text-xs">
                 <div className="font-bold text-emerald-950 flex items-center space-x-1.5">
                   <span>Logo Resmi Rumah Sakit Semen Gresik</span>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-600 text-white font-semibold">Aktif</span>
+                  <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-600 text-white font-semibold">
+                    Aktif
+                  </span>
                 </div>
                 <div className="text-emerald-800 text-[11px] mt-0.5">
-                  Logo resmi otomatis terpasang pada Kop Dokumen (kolom kiri baris 1 & 2) di preview dokumen & ekspor Word.
+                  Logo resmi otomatis terpasang pada Kop Dokumen (kolom kiri
+                  baris 1 & 2) di preview dokumen & ekspor Word.
                 </div>
               </div>
             </div>
@@ -466,7 +506,9 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
                 </label>
                 <textarea
                   value={spo.judulSpo}
-                  onChange={(e) => onChange({ ...spo, judulSpo: e.target.value })}
+                  onChange={(e) =>
+                    onChange({ ...spo, judulSpo: e.target.value })
+                  }
                   rows={2}
                   className="w-full text-sm font-semibold rounded-lg border-slate-300 shadow-xs focus:border-emerald-500 focus:ring-emerald-500 p-2.5 border uppercase"
                 />
@@ -479,7 +521,7 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
                 <input
                   type="text"
                   value={spo.metadata.institusi}
-                  onChange={(e) => updateMetadata('institusi', e.target.value)}
+                  onChange={(e) => updateMetadata("institusi", e.target.value)}
                   placeholder="RUMAH SAKIT SEMEN GRESIK / PT CIPTA NIRMALA"
                   className="w-full text-xs font-semibold rounded-lg border-slate-300 shadow-xs focus:border-emerald-500 focus:ring-emerald-500 p-2.5 border"
                 />
@@ -492,7 +534,7 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
                 <input
                   type="text"
                   value={spo.metadata.noDokumen}
-                  onChange={(e) => updateMetadata('noDokumen', e.target.value)}
+                  onChange={(e) => updateMetadata("noDokumen", e.target.value)}
                   placeholder="contoh: QAP/102341/770"
                   className="w-full text-xs font-mono rounded-lg border-slate-300 shadow-xs focus:border-emerald-500 focus:ring-emerald-500 p-2.5 border"
                 />
@@ -505,7 +547,7 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
                 <input
                   type="text"
                   value={spo.metadata.noRevisi}
-                  onChange={(e) => updateMetadata('noRevisi', e.target.value)}
+                  onChange={(e) => updateMetadata("noRevisi", e.target.value)}
                   placeholder="0"
                   className="w-full text-xs rounded-lg border-slate-300 shadow-xs focus:border-emerald-500 focus:ring-emerald-500 p-2.5 border"
                 />
@@ -518,7 +560,9 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
                 <input
                   type="text"
                   value={spo.metadata.tanggalTerbit}
-                  onChange={(e) => updateMetadata('tanggalTerbit', e.target.value)}
+                  onChange={(e) =>
+                    updateMetadata("tanggalTerbit", e.target.value)
+                  }
                   placeholder="contoh: 23 Oktober 2026"
                   className="w-full text-xs rounded-lg border-slate-300 shadow-xs focus:border-emerald-500 focus:ring-emerald-500 p-2.5 border"
                 />
@@ -526,15 +570,29 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
 
               <div className="md:col-span-2">
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Nama Kepala Rumah Sakit (Ditetapkan Oleh)
+                  Nama Kepala Rumah Sakit (Ditetapkan Oleh){" "}
+                  <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"
                   value={spo.metadata.kepalaRumahSakit}
-                  onChange={(e) => updateMetadata('kepalaRumahSakit', e.target.value)}
-                  placeholder="contoh: dr. Tolib Bahasuan"
-                  className="w-full text-xs font-semibold rounded-lg border-slate-300 shadow-xs focus:border-emerald-500 focus:ring-emerald-500 p-2.5 border"
+                  onChange={(e) =>
+                    updateMetadata("kepalaRumahSakit", e.target.value)
+                  }
+                  required
+                  placeholder="Wajib diisi — contoh: dr. Tolib Bahasuan"
+                  className={`w-full text-xs font-semibold rounded-lg shadow-xs focus:border-emerald-500 focus:ring-emerald-500 p-2.5 border ${
+                    !spo.metadata.kepalaRumahSakit?.trim()
+                      ? "border-rose-300 bg-rose-50/30"
+                      : "border-slate-300 bg-white"
+                  }`}
                 />
+                {!spo.metadata.kepalaRumahSakit?.trim() && (
+                  <p className="text-[11px] text-rose-600 mt-1">
+                    Nama Kepala Rumah Sakit wajib diisi dan tidak boleh
+                    dikosongkan.
+                  </p>
+                )}
               </div>
             </div>
           </div>
@@ -543,10 +601,12 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
           <div className="bg-white rounded-xl shadow-xs border border-slate-200 p-6">
             <div className="pb-4 border-b border-slate-200 mb-5">
               <h3 className="text-base font-bold text-slate-900">
-                Lembar Pengesahan Dokumen (Drafter, Creator, Reviewer)
+                Lembar Pengesahan Dokumen (Drafter, Creator, Reviewer){" "}
+                <span className="text-rose-500">*</span>
               </h3>
               <p className="text-xs text-slate-500">
-                Sesuai dengan template PT Cipta Nirmala, tentukan nama pejabat dan jabatannya.
+                Seluruh kolom nama dan jabatan pada lembar pengesahan wajib
+                diisi secara manual di sistem.
               </p>
             </div>
 
@@ -555,31 +615,48 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
               <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
                 <div className="text-xs font-bold uppercase tracking-wider text-emerald-800 mb-3 flex items-center justify-between">
                   <span>1. Drafter</span>
-                  <span className="text-[10px] text-slate-500 font-normal">Penyusun Awal</span>
+                  <span className="text-[10px] text-rose-600 font-semibold">
+                    Wajib Diisi
+                  </span>
                 </div>
                 <div className="space-y-3">
                   <div>
                     <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                      Nama Lengkap & Gelar
+                      Nama Lengkap & Gelar{" "}
+                      <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="text"
                       value={spo.metadata.drafter.nama}
-                      onChange={(e) => updateApproval('drafter', 'nama', e.target.value)}
-                      placeholder="Hana Thriesminarsih, S.Kes"
-                      className="w-full text-xs rounded-lg border-slate-300 bg-white p-2 border"
+                      onChange={(e) =>
+                        updateApproval("drafter", "nama", e.target.value)
+                      }
+                      required
+                      placeholder="Wajib diisi nama lengkap & gelar"
+                      className={`w-full text-xs rounded-lg p-2 border ${
+                        !spo.metadata.drafter.nama?.trim()
+                          ? "border-rose-300 bg-rose-50/30"
+                          : "border-slate-300 bg-white"
+                      }`}
                     />
                   </div>
                   <div>
                     <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                      Jabatan
+                      Jabatan <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="text"
                       value={spo.metadata.drafter.jabatan}
-                      onChange={(e) => updateApproval('drafter', 'jabatan', e.target.value)}
-                      placeholder="Karu Rehabilitasi Medik"
-                      className="w-full text-xs rounded-lg border-slate-300 bg-white p-2 border"
+                      onChange={(e) =>
+                        updateApproval("drafter", "jabatan", e.target.value)
+                      }
+                      required
+                      placeholder="Wajib diisi jabatan"
+                      className={`w-full text-xs rounded-lg p-2 border ${
+                        !spo.metadata.drafter.jabatan?.trim()
+                          ? "border-rose-300 bg-rose-50/30"
+                          : "border-slate-300 bg-white"
+                      }`}
                     />
                   </div>
                 </div>
@@ -589,31 +666,48 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
               <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
                 <div className="text-xs font-bold uppercase tracking-wider text-emerald-800 mb-3 flex items-center justify-between">
                   <span>2. Creator</span>
-                  <span className="text-[10px] text-slate-500 font-normal">Penanggung Jawab Unit</span>
+                  <span className="text-[10px] text-rose-600 font-semibold">
+                    Wajib Diisi
+                  </span>
                 </div>
                 <div className="space-y-3">
                   <div>
                     <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                      Nama Lengkap & Gelar
+                      Nama Lengkap & Gelar{" "}
+                      <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="text"
                       value={spo.metadata.creator.nama}
-                      onChange={(e) => updateApproval('creator', 'nama', e.target.value)}
-                      placeholder="dr. Achmad Farid, Sp.KFR"
-                      className="w-full text-xs rounded-lg border-slate-300 bg-white p-2 border"
+                      onChange={(e) =>
+                        updateApproval("creator", "nama", e.target.value)
+                      }
+                      required
+                      placeholder="Wajib diisi nama lengkap & gelar"
+                      className={`w-full text-xs rounded-lg p-2 border ${
+                        !spo.metadata.creator.nama?.trim()
+                          ? "border-rose-300 bg-rose-50/30"
+                          : "border-slate-300 bg-white"
+                      }`}
                     />
                   </div>
                   <div>
                     <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                      Jabatan
+                      Jabatan <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="text"
                       value={spo.metadata.creator.jabatan}
-                      onChange={(e) => updateApproval('creator', 'jabatan', e.target.value)}
-                      placeholder="Ka. Instalasi Rehabilitasi medik"
-                      className="w-full text-xs rounded-lg border-slate-300 bg-white p-2 border"
+                      onChange={(e) =>
+                        updateApproval("creator", "jabatan", e.target.value)
+                      }
+                      required
+                      placeholder="Wajib diisi jabatan"
+                      className={`w-full text-xs rounded-lg p-2 border ${
+                        !spo.metadata.creator.jabatan?.trim()
+                          ? "border-rose-300 bg-rose-50/30"
+                          : "border-slate-300 bg-white"
+                      }`}
                     />
                   </div>
                 </div>
@@ -623,31 +717,48 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
               <div className="p-4 rounded-xl bg-slate-50 border border-slate-200">
                 <div className="text-xs font-bold uppercase tracking-wider text-emerald-800 mb-3 flex items-center justify-between">
                   <span>3. Reviewer</span>
-                  <span className="text-[10px] text-slate-500 font-normal">Manajemen Mutu</span>
+                  <span className="text-[10px] text-rose-600 font-semibold">
+                    Wajib Diisi
+                  </span>
                 </div>
                 <div className="space-y-3">
                   <div>
                     <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                      Nama Lengkap & Gelar
+                      Nama Lengkap & Gelar{" "}
+                      <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="text"
                       value={spo.metadata.reviewer.nama}
-                      onChange={(e) => updateApproval('reviewer', 'nama', e.target.value)}
-                      placeholder="Nanang Judianto, SE"
-                      className="w-full text-xs rounded-lg border-slate-300 bg-white p-2 border"
+                      onChange={(e) =>
+                        updateApproval("reviewer", "nama", e.target.value)
+                      }
+                      required
+                      placeholder="Wajib diisi nama lengkap & gelar"
+                      className={`w-full text-xs rounded-lg p-2 border ${
+                        !spo.metadata.reviewer.nama?.trim()
+                          ? "border-rose-300 bg-rose-50/30"
+                          : "border-slate-300 bg-white"
+                      }`}
                     />
                   </div>
                   <div>
                     <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                      Jabatan
+                      Jabatan <span className="text-rose-500">*</span>
                     </label>
                     <input
                       type="text"
                       value={spo.metadata.reviewer.jabatan}
-                      onChange={(e) => updateApproval('reviewer', 'jabatan', e.target.value)}
-                      placeholder="Pgs. Manajer SMI"
-                      className="w-full text-xs rounded-lg border-slate-300 bg-white p-2 border"
+                      onChange={(e) =>
+                        updateApproval("reviewer", "jabatan", e.target.value)
+                      }
+                      required
+                      placeholder="Wajib diisi jabatan"
+                      className={`w-full text-xs rounded-lg p-2 border ${
+                        !spo.metadata.reviewer.jabatan?.trim()
+                          ? "border-rose-300 bg-rose-50/30"
+                          : "border-slate-300 bg-white"
+                      }`}
                     />
                   </div>
                 </div>
@@ -658,33 +769,27 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
       )}
 
       {/* TAB 2: PENGERTIAN & RUANG LINGKUP */}
-      {activeTab === 'pengertian' && (
+      {activeTab === "pengertian" && (
         <div className="space-y-6">
           {/* Definisi */}
           <div className="bg-white rounded-xl shadow-xs border border-slate-200 p-6">
             <div className="flex items-center justify-between pb-4 border-b border-slate-200 mb-5">
               <div>
-                <h3 className="text-base font-bold text-slate-900">A.1 Batasan Istilah & Definisi</h3>
+                <h3 className="text-base font-bold text-slate-900">
+                  A.1 Batasan Istilah & Definisi
+                </h3>
                 <p className="text-xs text-slate-500">
-                  Definisi operasional istilah teknis untuk menyamakan persepsi di seluruh unit
+                  Definisi operasional istilah teknis untuk menyamakan persepsi
+                  di seluruh unit
                 </p>
               </div>
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => onRefineSection('pengertian', spo.pengertian)}
-                  className="flex items-center space-x-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200"
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>Sempurnakan dengan AI</span>
-                </button>
-                <button
-                  onClick={addDefinisi}
-                  className="flex items-center space-x-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Tambah Definisi</span>
-                </button>
-              </div>
+              <button
+                onClick={addDefinisi}
+                className="flex items-center space-x-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Tambah Definisi</span>
+              </button>
             </div>
 
             <div className="space-y-4">
@@ -694,7 +799,9 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
                   className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 hover:border-slate-300 transition-colors"
                 >
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-bold text-slate-700">Istilah #{idx + 1}</span>
+                    <span className="text-xs font-bold text-slate-700">
+                      Istilah #{idx + 1}
+                    </span>
                     <button
                       onClick={() => removeDefinisi(idx)}
                       className="text-red-500 hover:text-red-700 p-1 rounded hover:bg-red-50"
@@ -707,13 +814,17 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
                     <input
                       type="text"
                       value={def.istilah}
-                      onChange={(e) => handleDefinisiChange(idx, 'istilah', e.target.value)}
+                      onChange={(e) =>
+                        handleDefinisiChange(idx, "istilah", e.target.value)
+                      }
                       placeholder="Nama Istilah (e.g. Tidak Layak Bayar (TLB))"
                       className="w-full text-xs font-semibold rounded-lg border-slate-300 bg-white p-2 border"
                     />
                     <textarea
                       value={def.penjelasan}
-                      onChange={(e) => handleDefinisiChange(idx, 'penjelasan', e.target.value)}
+                      onChange={(e) =>
+                        handleDefinisiChange(idx, "penjelasan", e.target.value)
+                      }
                       rows={2}
                       placeholder="Penjelasan definisi teknis..."
                       className="w-full text-xs rounded-lg border-slate-300 bg-white p-2 border"
@@ -728,9 +839,12 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
           <div className="bg-white rounded-xl shadow-xs border border-slate-200 p-6">
             <div className="flex items-center justify-between pb-4 border-b border-slate-200 mb-5">
               <div>
-                <h3 className="text-base font-bold text-slate-900">A.2 Ruang Lingkup Prosedur</h3>
+                <h3 className="text-base font-bold text-slate-900">
+                  A.2 Ruang Lingkup Prosedur
+                </h3>
                 <p className="text-xs text-slate-500">
-                  Daftar instalasi, unit pelayanan, dan petugas yang terikat prosedur ini
+                  Daftar instalasi, unit pelayanan, dan petugas yang terikat
+                  prosedur ini
                 </p>
               </div>
               <button
@@ -768,7 +882,9 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
                       <input
                         type="text"
                         value={unit}
-                        onChange={(e) => updateRuangLingkupUnit(idx, e.target.value)}
+                        onChange={(e) =>
+                          updateRuangLingkupUnit(idx, e.target.value)
+                        }
                         className="w-full text-xs rounded-lg border-slate-300 bg-white p-2 border"
                       />
                       <button
@@ -787,40 +903,39 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
       )}
 
       {/* TAB 3: TUJUAN & KEBIJAKAN */}
-      {activeTab === 'tujuan_kebijakan' && (
+      {activeTab === "tujuan_kebijakan" && (
         <div className="space-y-6">
           {/* B. TUJUAN */}
           <div className="bg-white rounded-xl shadow-xs border border-slate-200 p-6">
             <div className="flex items-center justify-between pb-4 border-b border-slate-200 mb-5">
               <div>
-                <h3 className="text-base font-bold text-slate-900">B. Sasaran & Tujuan SPO</h3>
+                <h3 className="text-base font-bold text-slate-900">
+                  B. Sasaran & Tujuan SPO
+                </h3>
                 <p className="text-xs text-slate-500">
-                  Target terukur yang ingin dicapai melalui penerapan prosedur ini
+                  Target terukur yang ingin dicapai melalui penerapan prosedur
+                  ini
                 </p>
               </div>
-              <div className="flex items-center space-x-2">
-                <button
-                  onClick={() => onRefineSection('tujuan', spo.tujuan)}
-                  className="flex items-center space-x-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200"
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>Refine AI</span>
-                </button>
-                <button
-                  onClick={addTujuan}
-                  className="flex items-center space-x-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Tambah Sasaran</span>
-                </button>
-              </div>
+              <button
+                onClick={addTujuan}
+                className="flex items-center space-x-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Tambah Sasaran</span>
+              </button>
             </div>
 
             <div className="space-y-4">
               {spo.tujuan.map((tuj, idx) => (
-                <div key={idx} className="p-4 rounded-xl border border-slate-200 bg-slate-50/50">
+                <div
+                  key={idx}
+                  className="p-4 rounded-xl border border-slate-200 bg-slate-50/50"
+                >
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-bold text-slate-700">Sasaran #{idx + 1}</span>
+                    <span className="text-xs font-bold text-slate-700">
+                      Sasaran #{idx + 1}
+                    </span>
                     <button
                       onClick={() => removeTujuan(idx)}
                       className="text-red-500 hover:text-red-700 p-1"
@@ -832,13 +947,17 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
                     <input
                       type="text"
                       value={tuj.judulTujuan}
-                      onChange={(e) => handleTujuanChange(idx, 'judulTujuan', e.target.value)}
+                      onChange={(e) =>
+                        handleTujuanChange(idx, "judulTujuan", e.target.value)
+                      }
                       placeholder="Judul Sasaran (e.g. Mencegah Penolakan Klaim (Zero TLB))"
                       className="w-full text-xs font-bold rounded-lg border-slate-300 bg-white p-2 border"
                     />
                     <textarea
                       value={tuj.deskripsi}
-                      onChange={(e) => handleTujuanChange(idx, 'deskripsi', e.target.value)}
+                      onChange={(e) =>
+                        handleTujuanChange(idx, "deskripsi", e.target.value)
+                      }
                       rows={2}
                       placeholder="Deskripsi target operasional..."
                       className="w-full text-xs rounded-lg border-slate-300 bg-white p-2 border"
@@ -853,35 +972,30 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
           <div className="bg-white rounded-xl shadow-xs border border-slate-200 p-6">
             <div className="flex items-center justify-between pb-4 border-b border-slate-200 mb-5">
               <div>
-                <h3 className="text-base font-bold text-slate-900">C.1 Ketentuan Kebijakan</h3>
+                <h3 className="text-base font-bold text-slate-900">
+                  C.1 Ketentuan Kebijakan
+                </h3>
                 <p className="text-xs text-slate-500">
-                  Prinsip dan klausul hukum/operasional resmi yang mengikat prosedur
+                  Prinsip dan klausul hukum/operasional resmi yang mengikat
+                  prosedur
                 </p>
               </div>
-              <div className="flex items-center space-x-2">
-                <button
-                  type="button"
-                  onClick={() => onRefineSection('kebijakan', spo.kebijakan)}
-                  className="flex items-center space-x-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 cursor-pointer"
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>Refine AI</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={addKetentuan}
-                  className="flex items-center space-x-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 cursor-pointer"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Tambah Klausul</span>
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={addKetentuan}
+                className="flex items-center space-x-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Tambah Klausul</span>
+              </button>
             </div>
 
             <div className="space-y-3">
               {spo.kebijakan.ketentuan.map((ket, idx) => (
                 <div key={idx} className="flex items-start space-x-2">
-                  <span className="text-xs font-bold text-slate-600 mt-2 shrink-0">{idx + 1}.</span>
+                  <span className="text-xs font-bold text-slate-600 mt-2 shrink-0">
+                    {idx + 1}.
+                  </span>
                   <textarea
                     value={ket}
                     onChange={(e) => handleKetentuanChange(idx, e.target.value)}
@@ -902,7 +1016,7 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
       )}
 
       {/* TAB 4: RISK REGISTER TABLE */}
-      {activeTab === 'risiko' && (
+      {activeTab === "risiko" && (
         <div className="bg-white rounded-xl shadow-xs border border-slate-200 p-6">
           <div className="flex items-center justify-between pb-4 border-b border-slate-200 mb-5">
             <div>
@@ -910,25 +1024,17 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
                 C.2 Analisis Risiko & Mitigasi (Risk Register Operasional)
               </h3>
               <p className="text-xs text-slate-500">
-                Identifikasi potensi kegagalan, kode risiko, deskripsi, dan langkah mitigasi konkret
+                Identifikasi potensi kegagalan, kode risiko, deskripsi, dan
+                langkah mitigasi konkret
               </p>
             </div>
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => onRefineSection('kebijakan', spo.kebijakan)}
-                className="flex items-center space-x-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Refine AI</span>
-              </button>
-              <button
-                onClick={addRiskItem}
-                className="flex items-center space-x-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Tambah Baris Risiko</span>
-              </button>
-            </div>
+            <button
+              onClick={addRiskItem}
+              className="flex items-center space-x-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Tambah Baris Risiko</span>
+            </button>
           </div>
 
           <div className="space-y-6">
@@ -943,7 +1049,7 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
                       {risk.kode || `R${idx + 1}`}
                     </span>
                     <span className="text-xs font-bold text-slate-800">
-                      {risk.namaRisiko || 'Risiko Operasional'}
+                      {risk.namaRisiko || "Risiko Operasional"}
                     </span>
                   </div>
                   <button
@@ -957,11 +1063,15 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
 
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-3 text-xs">
                   <div className="md:col-span-2">
-                    <label className="block font-semibold text-slate-600 mb-1">Kode Risiko</label>
+                    <label className="block font-semibold text-slate-600 mb-1">
+                      Kode Risiko
+                    </label>
                     <input
                       type="text"
                       value={risk.kode}
-                      onChange={(e) => handleRiskChange(idx, 'kode', e.target.value)}
+                      onChange={(e) =>
+                        handleRiskChange(idx, "kode", e.target.value)
+                      }
                       className="w-full rounded border-slate-300 bg-white p-2 border font-mono font-bold"
                     />
                   </div>
@@ -973,17 +1083,23 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
                     <input
                       type="text"
                       value={risk.proses}
-                      onChange={(e) => handleRiskChange(idx, 'proses', e.target.value)}
+                      onChange={(e) =>
+                        handleRiskChange(idx, "proses", e.target.value)
+                      }
                       className="w-full rounded border-slate-300 bg-white p-2 border font-medium"
                     />
                   </div>
 
                   <div className="md:col-span-5">
-                    <label className="block font-semibold text-slate-600 mb-1">Nama Risiko</label>
+                    <label className="block font-semibold text-slate-600 mb-1">
+                      Nama Risiko
+                    </label>
                     <input
                       type="text"
                       value={risk.namaRisiko}
-                      onChange={(e) => handleRiskChange(idx, 'namaRisiko', e.target.value)}
+                      onChange={(e) =>
+                        handleRiskChange(idx, "namaRisiko", e.target.value)
+                      }
                       className="w-full rounded border-slate-300 bg-white p-2 border font-semibold text-rose-800"
                     />
                   </div>
@@ -994,7 +1110,9 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
                     </label>
                     <textarea
                       value={risk.deskripsiRisiko}
-                      onChange={(e) => handleRiskChange(idx, 'deskripsiRisiko', e.target.value)}
+                      onChange={(e) =>
+                        handleRiskChange(idx, "deskripsiRisiko", e.target.value)
+                      }
                       rows={3}
                       className="w-full rounded border-slate-300 bg-white p-2 border"
                     />
@@ -1007,8 +1125,11 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
                       </label>
                       <button
                         onClick={() => {
-                          const updatedMitigasi = [...risk.mitigasi, 'Langkah mitigasi tambahan'];
-                          handleRiskChange(idx, 'mitigasi', updatedMitigasi);
+                          const updatedMitigasi = [
+                            ...risk.mitigasi,
+                            "Langkah mitigasi tambahan",
+                          ];
+                          handleRiskChange(idx, "mitigasi", updatedMitigasi);
                         }}
                         className="text-[10px] text-emerald-700 hover:underline font-semibold"
                       >
@@ -1017,22 +1138,37 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
                     </div>
                     <div className="space-y-1.5">
                       {risk.mitigasi.map((m, mIdx) => (
-                        <div key={mIdx} className="flex items-center space-x-1.5">
-                          <span className="text-[10px] text-slate-400">{mIdx + 1}.</span>
+                        <div
+                          key={mIdx}
+                          className="flex items-center space-x-1.5"
+                        >
+                          <span className="text-[10px] text-slate-400">
+                            {mIdx + 1}.
+                          </span>
                           <input
                             type="text"
                             value={m}
                             onChange={(e) => {
                               const updatedMitigasi = [...risk.mitigasi];
                               updatedMitigasi[mIdx] = e.target.value;
-                              handleRiskChange(idx, 'mitigasi', updatedMitigasi);
+                              handleRiskChange(
+                                idx,
+                                "mitigasi",
+                                updatedMitigasi,
+                              );
                             }}
                             className="w-full rounded border-slate-300 bg-white p-1.5 border text-xs"
                           />
                           <button
                             onClick={() => {
-                              const updatedMitigasi = risk.mitigasi.filter((_, i) => i !== mIdx);
-                              handleRiskChange(idx, 'mitigasi', updatedMitigasi);
+                              const updatedMitigasi = risk.mitigasi.filter(
+                                (_, i) => i !== mIdx,
+                              );
+                              handleRiskChange(
+                                idx,
+                                "mitigasi",
+                                updatedMitigasi,
+                              );
                             }}
                             className="text-red-400 hover:text-red-600 p-1"
                           >
@@ -1050,7 +1186,7 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
       )}
 
       {/* TAB 5: PROSEDUR PELAKSANAAN TABLE */}
-      {activeTab === 'prosedur' && (
+      {activeTab === "prosedur" && (
         <div className="bg-white rounded-xl shadow-xs border border-slate-200 p-6">
           <div className="flex items-center justify-between pb-4 border-b border-slate-200 mb-5">
             <div>
@@ -1058,25 +1194,17 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
                 D.1 Uraian Alur Prosedur Operasional
               </h3>
               <p className="text-xs text-slate-500">
-                Langkah-langkah terperinci dengan nomor proses, uraian teknis, lead time, dan pelaksana
+                Langkah-langkah terperinci dengan nomor proses, uraian teknis,
+                lead time, dan pelaksana
               </p>
             </div>
-            <div className="flex items-center space-x-2">
-              <button
-                onClick={() => onRefineSection('prosedur', spo.prosedur)}
-                className="flex items-center space-x-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>Refine AI</span>
-              </button>
-              <button
-                onClick={addProsedurStep}
-                className="flex items-center space-x-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>Tambah Tahapan Prosedur</span>
-              </button>
-            </div>
+            <button
+              onClick={addProsedurStep}
+              className="flex items-center space-x-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span>Tambah Tahapan Prosedur</span>
+            </button>
           </div>
 
           <div className="space-y-6">
@@ -1105,11 +1233,15 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
 
                 <div className="grid grid-cols-1 md:grid-cols-12 gap-3 text-xs">
                   <div className="md:col-span-2">
-                    <label className="block font-semibold text-slate-600 mb-1">No. Proses</label>
+                    <label className="block font-semibold text-slate-600 mb-1">
+                      No. Proses
+                    </label>
                     <input
                       type="text"
                       value={proc.noProses}
-                      onChange={(e) => handleProsedurChange(idx, 'noProses', e.target.value)}
+                      onChange={(e) =>
+                        handleProsedurChange(idx, "noProses", e.target.value)
+                      }
                       placeholder="5.1"
                       className="w-full rounded border-slate-300 bg-white p-2 border font-mono font-bold"
                     />
@@ -1122,18 +1254,28 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
                     <input
                       type="text"
                       value={proc.judulTahapan}
-                      onChange={(e) => handleProsedurChange(idx, 'judulTahapan', e.target.value)}
+                      onChange={(e) =>
+                        handleProsedurChange(
+                          idx,
+                          "judulTahapan",
+                          e.target.value,
+                        )
+                      }
                       placeholder="SKRINING AWAL DI LOKET PENDAFTARAN"
                       className="w-full rounded border-slate-300 bg-white p-2 border font-bold uppercase"
                     />
                   </div>
 
                   <div className="md:col-span-2">
-                    <label className="block font-semibold text-slate-600 mb-1">Lead Time</label>
+                    <label className="block font-semibold text-slate-600 mb-1">
+                      Lead Time
+                    </label>
                     <input
                       type="text"
                       value={proc.leadTime}
-                      onChange={(e) => handleProsedurChange(idx, 'leadTime', e.target.value)}
+                      onChange={(e) =>
+                        handleProsedurChange(idx, "leadTime", e.target.value)
+                      }
                       placeholder="3 Menit"
                       className="w-full rounded border-slate-300 bg-white p-2 border text-center font-medium"
                     />
@@ -1146,7 +1288,9 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
                     <input
                       type="text"
                       value={proc.pelaksana}
-                      onChange={(e) => handleProsedurChange(idx, 'pelaksana', e.target.value)}
+                      onChange={(e) =>
+                        handleProsedurChange(idx, "pelaksana", e.target.value)
+                      }
                       placeholder="Petugas Loket / Operator APM"
                       className="w-full rounded border-slate-300 bg-white p-2 border font-medium text-slate-800"
                     />
@@ -1159,8 +1303,11 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
                       </label>
                       <button
                         onClick={() => {
-                          const updatedLangkah = [...proc.langkah, 'Langkah operasional selanjutnya.'];
-                          handleProsedurChange(idx, 'langkah', updatedLangkah);
+                          const updatedLangkah = [
+                            ...proc.langkah,
+                            "Langkah operasional selanjutnya.",
+                          ];
+                          handleProsedurChange(idx, "langkah", updatedLangkah);
                         }}
                         className="text-[11px] text-emerald-700 font-bold hover:underline"
                       >
@@ -1179,15 +1326,25 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
                             onChange={(e) => {
                               const updatedLangkah = [...proc.langkah];
                               updatedLangkah[sIdx] = e.target.value;
-                              handleProsedurChange(idx, 'langkah', updatedLangkah);
+                              handleProsedurChange(
+                                idx,
+                                "langkah",
+                                updatedLangkah,
+                              );
                             }}
                             rows={2}
                             className="w-full text-xs rounded-lg border-slate-300 bg-white p-2 border"
                           />
                           <button
                             onClick={() => {
-                              const updatedLangkah = proc.langkah.filter((_, i) => i !== sIdx);
-                              handleProsedurChange(idx, 'langkah', updatedLangkah);
+                              const updatedLangkah = proc.langkah.filter(
+                                (_, i) => i !== sIdx,
+                              );
+                              handleProsedurChange(
+                                idx,
+                                "langkah",
+                                updatedLangkah,
+                              );
                             }}
                             className="text-red-400 hover:text-red-600 p-2 shrink-0"
                           >
@@ -1205,7 +1362,7 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
       )}
 
       {/* TAB 6: UNIT TERKAIT & DOKUMEN PENDUKUNG */}
-      {activeTab === 'unit_dokumen' && (
+      {activeTab === "unit_dokumen" && (
         <div className="space-y-6">
           {/* E. Tanggung Jawab Unit */}
           <div className="bg-white rounded-xl shadow-xs border border-slate-200 p-6">
@@ -1215,47 +1372,48 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
                   E. Tanggung Jawab Unit Terkait
                 </h3>
                 <p className="text-xs text-slate-500">
-                  Rincian tugas spesifik per instalasi / departemen dalam penerapan SPO
+                  Rincian tugas spesifik per instalasi / departemen dalam
+                  penerapan SPO
                 </p>
               </div>
-              <div className="flex items-center space-x-2">
-                <button
-                  type="button"
-                  onClick={() => onRefineSection('tanggungJawabUnit', spo.tanggungJawabUnit)}
-                  className="flex items-center space-x-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 cursor-pointer"
-                >
-                  <Sparkles className="w-3.5 h-3.5" />
-                  <span>Refine AI</span>
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    onChange({
-                      ...spo,
-                      tanggungJawabUnit: [
-                        ...spo.tanggungJawabUnit,
-                        { unit: 'Unit Baru', tugas: ['Tanggung jawab operasional unit.'] },
-                      ],
-                    });
-                  }}
-                  className="flex items-center space-x-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 cursor-pointer"
-                >
-                  <Plus className="w-3.5 h-3.5" />
-                  <span>Tambah Unit</span>
-                </button>
-              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  onChange({
+                    ...spo,
+                    tanggungJawabUnit: [
+                      ...spo.tanggungJawabUnit,
+                      {
+                        unit: "Unit Baru",
+                        tugas: ["Tanggung jawab operasional unit."],
+                      },
+                    ],
+                  });
+                }}
+                className="flex items-center space-x-1 px-3 py-1.5 rounded-lg text-xs font-semibold text-white bg-emerald-600 hover:bg-emerald-700 cursor-pointer"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                <span>Tambah Unit</span>
+              </button>
             </div>
 
             <div className="space-y-5">
               {spo.tanggungJawabUnit.map((unitItem, uIdx) => (
-                <div key={uIdx} className="p-4 rounded-xl border border-slate-200 bg-slate-50/50">
+                <div
+                  key={uIdx}
+                  className="p-4 rounded-xl border border-slate-200 bg-slate-50/50"
+                >
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-xs font-bold text-slate-700">Unit #{uIdx + 1}</span>
+                    <span className="text-xs font-bold text-slate-700">
+                      Unit #{uIdx + 1}
+                    </span>
                     <button
                       onClick={() => {
                         onChange({
                           ...spo,
-                          tanggungJawabUnit: spo.tanggungJawabUnit.filter((_, i) => i !== uIdx),
+                          tanggungJawabUnit: spo.tanggungJawabUnit.filter(
+                            (_, i) => i !== uIdx,
+                          ),
                         });
                       }}
                       className="text-red-500 hover:text-red-700 p-1"
@@ -1269,7 +1427,10 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
                       value={unitItem.unit}
                       onChange={(e) => {
                         const updated = [...spo.tanggungJawabUnit];
-                        updated[uIdx] = { ...updated[uIdx], unit: e.target.value };
+                        updated[uIdx] = {
+                          ...updated[uIdx],
+                          unit: e.target.value,
+                        };
                         onChange({ ...spo, tanggungJawabUnit: updated });
                       }}
                       placeholder="Nama Unit / Instalasi"
@@ -1286,7 +1447,10 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
                             const updated = [...spo.tanggungJawabUnit];
                             updated[uIdx] = {
                               ...updated[uIdx],
-                              tugas: [...updated[uIdx].tugas, 'Tugas operasional baru.'],
+                              tugas: [
+                                ...updated[uIdx].tugas,
+                                "Tugas operasional baru.",
+                              ],
                             };
                             onChange({ ...spo, tanggungJawabUnit: updated });
                           }}
@@ -1297,16 +1461,27 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
                       </div>
                       <div className="space-y-1.5">
                         {unitItem.tugas.map((t, tIdx) => (
-                          <div key={tIdx} className="flex items-start space-x-1.5">
-                            <span className="text-[10px] text-slate-400 mt-2">○</span>
+                          <div
+                            key={tIdx}
+                            className="flex items-start space-x-1.5"
+                          >
+                            <span className="text-[10px] text-slate-400 mt-2">
+                              ○
+                            </span>
                             <textarea
                               value={t}
                               onChange={(e) => {
                                 const updated = [...spo.tanggungJawabUnit];
                                 const updatedTugas = [...updated[uIdx].tugas];
                                 updatedTugas[tIdx] = e.target.value;
-                                updated[uIdx] = { ...updated[uIdx], tugas: updatedTugas };
-                                onChange({ ...spo, tanggungJawabUnit: updated });
+                                updated[uIdx] = {
+                                  ...updated[uIdx],
+                                  tugas: updatedTugas,
+                                };
+                                onChange({
+                                  ...spo,
+                                  tanggungJawabUnit: updated,
+                                });
                               }}
                               rows={2}
                               className="w-full text-xs rounded-lg border-slate-300 bg-white p-2 border"
@@ -1316,9 +1491,14 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
                                 const updated = [...spo.tanggungJawabUnit];
                                 updated[uIdx] = {
                                   ...updated[uIdx],
-                                  tugas: updated[uIdx].tugas.filter((_, i) => i !== tIdx),
+                                  tugas: updated[uIdx].tugas.filter(
+                                    (_, i) => i !== tIdx,
+                                  ),
                                 };
-                                onChange({ ...spo, tanggungJawabUnit: updated });
+                                onChange({
+                                  ...spo,
+                                  tanggungJawabUnit: updated,
+                                });
                               }}
                               className="text-red-400 hover:text-red-600 p-2"
                             >
@@ -1342,7 +1522,8 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
                   F.1 Formulir & Dokumen Terkait
                 </h3>
                 <p className="text-xs text-slate-500">
-                  Berkas fisik, formulir resmi, atau modul sistem elektronik yang diacu
+                  Berkas fisik, formulir resmi, atau modul sistem elektronik
+                  yang diacu
                 </p>
               </div>
               <button
@@ -1353,7 +1534,7 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
                       ...spo.formulirPendukung,
                       dokumenTerkait: [
                         ...spo.formulirPendukung.dokumenTerkait,
-                        'Dokumen / Formulir Resmi Baru',
+                        "Dokumen / Formulir Resmi Baru",
                       ],
                     },
                   });
@@ -1368,7 +1549,8 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
             <div className="space-y-2">
               {spo.formulirPendukung.dokumenTerkait.length === 0 ? (
                 <div className="p-4 rounded-xl border border-dashed border-slate-300 bg-slate-50/70 text-center text-xs text-slate-500">
-                  Belum ada dokumen terkait. Klik <strong>"+ Tambah Dokumen"</strong> untuk menambahkan.
+                  Belum ada dokumen terkait. Klik{" "}
+                  <strong>"+ Tambah Dokumen"</strong> untuk menambahkan.
                 </div>
               ) : (
                 spo.formulirPendukung.dokumenTerkait.map((dok, idx) => (
@@ -1380,11 +1562,16 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
                       type="text"
                       value={dok}
                       onChange={(e) => {
-                        const updated = [...spo.formulirPendukung.dokumenTerkait];
+                        const updated = [
+                          ...spo.formulirPendukung.dokumenTerkait,
+                        ];
                         updated[idx] = e.target.value;
                         onChange({
                           ...spo,
-                          formulirPendukung: { ...spo.formulirPendukung, dokumenTerkait: updated },
+                          formulirPendukung: {
+                            ...spo.formulirPendukung,
+                            dokumenTerkait: updated,
+                          },
                         });
                       }}
                       className="w-full text-xs rounded-lg border-slate-300 bg-white p-2 border"
@@ -1395,7 +1582,10 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
                           ...spo,
                           formulirPendukung: {
                             ...spo.formulirPendukung,
-                            dokumenTerkait: spo.formulirPendukung.dokumenTerkait.filter((_, i) => i !== idx),
+                            dokumenTerkait:
+                              spo.formulirPendukung.dokumenTerkait.filter(
+                                (_, i) => i !== idx,
+                              ),
                           },
                         });
                       }}
@@ -1417,16 +1607,17 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
                   F.2 Riwayat Perubahan Dokumen
                 </h3>
                 <p className="text-xs text-slate-500">
-                  Catatan kronologis tanggal terbit, nomor versi/revisi, dan uraian pembaruan SPO
+                  Catatan kronologis tanggal terbit, nomor versi/revisi, dan
+                  uraian pembaruan SPO
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => {
-                  const today = new Date().toLocaleDateString('id-ID', {
-                    day: 'numeric',
-                    month: 'long',
-                    year: 'numeric',
+                  const today = new Date().toLocaleDateString("id-ID", {
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
                   });
                   const nextVer = `Rev. ${spo.formulirPendukung.riwayatPerubahan.length}`;
                   onChange({
@@ -1438,7 +1629,8 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
                         {
                           tanggal: spo.metadata.tanggalTerbit || today,
                           versi: nextVer,
-                          deskripsi: 'Pembaruan / penyusunan dokumen Standar Prosedur Operasional.',
+                          deskripsi:
+                            "Pembaruan / penyusunan dokumen Standar Prosedur Operasional.",
                         },
                       ],
                     },
@@ -1454,7 +1646,9 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
             <div className="space-y-3">
               {spo.formulirPendukung.riwayatPerubahan.length === 0 ? (
                 <div className="p-4 rounded-xl border border-dashed border-slate-300 bg-slate-50/70 text-center text-xs text-slate-500">
-                  Belum ada catatan riwayat perubahan. Klik <strong>"+ Tambah Riwayat"</strong> untuk menambahkan baris revisi.
+                  Belum ada catatan riwayat perubahan. Klik{" "}
+                  <strong>"+ Tambah Riwayat"</strong> untuk menambahkan baris
+                  revisi.
                 </div>
               ) : (
                 spo.formulirPendukung.riwayatPerubahan.map((rev, idx) => (
@@ -1463,7 +1657,9 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
                     className="p-4 rounded-xl border border-slate-200 bg-slate-50/60 space-y-3"
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold text-slate-700">Riwayat #{idx + 1}</span>
+                      <span className="text-xs font-bold text-slate-700">
+                        Riwayat #{idx + 1}
+                      </span>
                       <button
                         type="button"
                         onClick={() => {
@@ -1471,9 +1667,10 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
                             ...spo,
                             formulirPendukung: {
                               ...spo.formulirPendukung,
-                              riwayatPerubahan: spo.formulirPendukung.riwayatPerubahan.filter(
-                                (_, i) => i !== idx
-                              ),
+                              riwayatPerubahan:
+                                spo.formulirPendukung.riwayatPerubahan.filter(
+                                  (_, i) => i !== idx,
+                                ),
                             },
                           });
                         }}
@@ -1485,13 +1682,20 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
                       <div>
-                        <label className="block font-semibold text-slate-600 mb-1">Tanggal</label>
+                        <label className="block font-semibold text-slate-600 mb-1">
+                          Tanggal
+                        </label>
                         <input
                           type="text"
                           value={rev.tanggal}
                           onChange={(e) => {
-                            const updated = [...spo.formulirPendukung.riwayatPerubahan];
-                            updated[idx] = { ...updated[idx], tanggal: e.target.value };
+                            const updated = [
+                              ...spo.formulirPendukung.riwayatPerubahan,
+                            ];
+                            updated[idx] = {
+                              ...updated[idx],
+                              tanggal: e.target.value,
+                            };
                             onChange({
                               ...spo,
                               formulirPendukung: {
@@ -1505,13 +1709,20 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
                         />
                       </div>
                       <div>
-                        <label className="block font-semibold text-slate-600 mb-1">Versi Dokumen</label>
+                        <label className="block font-semibold text-slate-600 mb-1">
+                          Versi Dokumen
+                        </label>
                         <input
                           type="text"
                           value={rev.versi}
                           onChange={(e) => {
-                            const updated = [...spo.formulirPendukung.riwayatPerubahan];
-                            updated[idx] = { ...updated[idx], versi: e.target.value };
+                            const updated = [
+                              ...spo.formulirPendukung.riwayatPerubahan,
+                            ];
+                            updated[idx] = {
+                              ...updated[idx],
+                              versi: e.target.value,
+                            };
                             onChange({
                               ...spo,
                               formulirPendukung: {
@@ -1531,8 +1742,13 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
                         <textarea
                           value={rev.deskripsi}
                           onChange={(e) => {
-                            const updated = [...spo.formulirPendukung.riwayatPerubahan];
-                            updated[idx] = { ...updated[idx], deskripsi: e.target.value };
+                            const updated = [
+                              ...spo.formulirPendukung.riwayatPerubahan,
+                            ];
+                            updated[idx] = {
+                              ...updated[idx],
+                              deskripsi: e.target.value,
+                            };
                             onChange({
                               ...spo,
                               formulirPendukung: {

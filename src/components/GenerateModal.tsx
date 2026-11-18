@@ -1,13 +1,8 @@
-import React, { useState, useRef } from 'react';
-import {
-  X,
-  FileText,
-  UserCheck,
-  AlertCircle,
-} from 'lucide-react';
-import { SpoDocument } from '../types/spo';
-import { generateSmartSpoDocument } from '../utils/spoGeneratorEngine';
-import { buildFlowchartModelFromSpo } from '../utils/flowchartHelper';
+import React, { useState, useRef } from "react";
+import { X, FileText, UserCheck, AlertCircle } from "lucide-react";
+import { SpoDocument } from "../types/spo";
+import { generateSmartSpoDocument } from "../utils/spoGeneratorEngine";
+import { buildFlowchartModelFromSpo } from "../utils/flowchartHelper";
 
 interface GenerateModalProps {
   isOpen: boolean;
@@ -24,33 +19,37 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
   currentSpo,
   onGeneratingChange,
 }) => {
-  const [judul, setJudul] = useState('');
+  const [judul, setJudul] = useState("");
   const institusi =
-    currentSpo?.metadata?.institusi?.trim() || 'RUMAH SAKIT SEMEN GRESIK / PT CIPTA NIRMALA';
-  const [noDokumen, setNoDokumen] = useState('');
-  const [noRevisi, setNoRevisi] = useState('0');
-  const [tanggalTerbit, setTanggalTerbit] = useState('');
-  const [kepalaRumahSakit, setKepalaRumahSakit] = useState('');
+    currentSpo?.metadata?.institusi?.trim() ||
+    "RUMAH SAKIT SEMEN GRESIK / PT CIPTA NIRMALA";
+  const [noDokumen, setNoDokumen] = useState("");
+  const [noRevisi, setNoRevisi] = useState("0");
+  const [tanggalTerbit, setTanggalTerbit] = useState("");
+  const [kepalaRumahSakit, setKepalaRumahSakit] = useState("");
 
   // Lembar Pengesahan
-  const [drafterNama, setDrafterNama] = useState('');
-  const [drafterJabatan, setDrafterJabatan] = useState('');
-  const [creatorNama, setCreatorNama] = useState('');
-  const [creatorJabatan, setCreatorJabatan] = useState('');
-  const [reviewerNama, setReviewerNama] = useState('');
-  const [reviewerJabatan, setReviewerJabatan] = useState('');
+  const [drafterNama, setDrafterNama] = useState("");
+  const [drafterJabatan, setDrafterJabatan] = useState("");
+  const [creatorNama, setCreatorNama] = useState("");
+  const [creatorJabatan, setCreatorJabatan] = useState("");
+  const [reviewerNama, setReviewerNama] = useState("");
+  const [reviewerJabatan, setReviewerJabatan] = useState("");
 
-  const [konteksTambahan, setKonteksTambahan] = useState('');
+  const [konteksTambahan, setKonteksTambahan] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [showValidation, setShowValidation] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
 
   // Track which fields were manually edited so auto-fill does not overwrite user input
   const manualEditsRef = useRef<Record<string, boolean>>({});
+  const bodyRef = useRef<HTMLDivElement | null>(null);
 
   React.useEffect(() => {
     if (isOpen) {
       setErrorMsg(null);
+      setShowValidation(false);
       setIsLoading(false);
       setCurrentStep(0);
     }
@@ -59,7 +58,7 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
   const setFieldAuto = (
     key: string,
     setter: React.Dispatch<React.SetStateAction<string>>,
-    val: string
+    val: string,
   ) => {
     if (!manualEditsRef.current[key]) {
       setter(val);
@@ -72,104 +71,62 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
     const year = new Date().getFullYear();
 
     if (
-      lower.includes('igd') ||
-      lower.includes('triase') ||
-      lower.includes('darurat') ||
-      lower.includes('esi')
+      lower.includes("igd") ||
+      lower.includes("triase") ||
+      lower.includes("darurat") ||
+      lower.includes("esi")
     ) {
-      setFieldAuto('noDokumen', setNoDokumen, `MED/IGD/${year}/012`);
-      setFieldAuto('drafterNama', setDrafterNama, 'Ns. Hendra Prasetyo, S.Kep');
-      setFieldAuto('drafterJabatan', setDrafterJabatan, 'Kepala Ruangan IGD');
-      setFieldAuto('creatorNama', setCreatorNama, 'dr. Budi Setiawan, Sp.EM');
-      setFieldAuto('creatorJabatan', setCreatorJabatan, 'Ka. Instalasi Gawat Darurat');
-      setFieldAuto('reviewerNama', setReviewerNama, 'dr. Ratna Juwita, MARS');
-      setFieldAuto('reviewerJabatan', setReviewerJabatan, 'Manajer Pelayanan Medis');
+      setFieldAuto("noDokumen", setNoDokumen, `MED/IGD/${year}/012`);
     } else if (
-      lower.includes('farmasi') ||
-      lower.includes('obat') ||
-      lower.includes('high alert') ||
-      lower.includes('lasa')
+      lower.includes("farmasi") ||
+      lower.includes("obat") ||
+      lower.includes("high alert") ||
+      lower.includes("lasa")
     ) {
-      setFieldAuto('noDokumen', setNoDokumen, `FAR/SPO/${year}/118`);
-      setFieldAuto('drafterNama', setDrafterNama, 'Apt. Dwi Lestari, S.Farm');
-      setFieldAuto('drafterJabatan', setDrafterJabatan, 'Koordinator Farmasi Klinis');
-      setFieldAuto('creatorNama', setCreatorNama, 'Apt. Agus Purwanto, M.Farm');
-      setFieldAuto('creatorJabatan', setCreatorJabatan, 'Ka. Instalasi Farmasi');
-      setFieldAuto('reviewerNama', setReviewerNama, 'Nanang Judianto, SE');
-      setFieldAuto('reviewerJabatan', setReviewerJabatan, 'Pgs. Manajer SMI');
+      setFieldAuto("noDokumen", setNoDokumen, `FAR/SPO/${year}/118`);
     } else if (
-      lower.includes('code blue') ||
-      lower.includes('henti jantung') ||
-      lower.includes('resusitasi') ||
-      lower.includes('rjp')
+      lower.includes("code blue") ||
+      lower.includes("henti jantung") ||
+      lower.includes("resusitasi") ||
+      lower.includes("rjp")
     ) {
-      setFieldAuto('noDokumen', setNoDokumen, `MED/CBL/${year}/005`);
-      setFieldAuto('drafterNama', setDrafterNama, 'dr. Alamsyah Pratama');
-      setFieldAuto('drafterJabatan', setDrafterJabatan, 'Ketua Tim Code Blue');
-      setFieldAuto('creatorNama', setCreatorNama, 'dr. Syaiful Anwar, Sp.An-TI');
-      setFieldAuto('creatorJabatan', setCreatorJabatan, 'Ka. Instalasi Anestesi & ICU');
-      setFieldAuto('reviewerNama', setReviewerNama, 'Nanang Judianto, SE');
-      setFieldAuto('reviewerJabatan', setReviewerJabatan, 'Pgs. Manajer SMI');
+      setFieldAuto("noDokumen", setNoDokumen, `MED/CBL/${year}/005`);
     } else if (
-      lower.includes('admisi') ||
-      lower.includes('rawat inap') ||
-      lower.includes('sep') ||
-      lower.includes('tpprj')
+      lower.includes("admisi") ||
+      lower.includes("rawat inap") ||
+      lower.includes("sep") ||
+      lower.includes("tpprj")
     ) {
-      setFieldAuto('noDokumen', setNoDokumen, `ADM/SPO/${year}/089`);
-      setFieldAuto('drafterNama', setDrafterNama, 'Dewi Kartika, A.Md.PK');
-      setFieldAuto('drafterJabatan', setDrafterJabatan, 'Supervisor Admisi & TPPRJ');
-      setFieldAuto('creatorNama', setCreatorNama, 'Yulianto, SE');
-      setFieldAuto('creatorJabatan', setCreatorJabatan, 'Ka. Instalasi Rekam Medis & Admisi');
-      setFieldAuto('reviewerNama', setReviewerNama, 'Nanang Judianto, SE');
-      setFieldAuto('reviewerJabatan', setReviewerJabatan, 'Pgs. Manajer SMI');
+      setFieldAuto("noDokumen", setNoDokumen, `ADM/SPO/${year}/089`);
     } else if (
-      lower.includes('bedah') ||
-      lower.includes('operasi') ||
-      lower.includes('ibs')
+      lower.includes("bedah") ||
+      lower.includes("operasi") ||
+      lower.includes("ibs")
     ) {
-      setFieldAuto('noDokumen', setNoDokumen, `BDH/SPO/${year}/045`);
-      setFieldAuto('drafterNama', setDrafterNama, 'Ns. Bambang Irawan, S.Kep');
-      setFieldAuto('drafterJabatan', setDrafterJabatan, 'Karu Kamar Operasi (IBS)');
-      setFieldAuto('creatorNama', setCreatorNama, 'dr. Hendro Wicaksono, Sp.B');
-      setFieldAuto('creatorJabatan', setCreatorJabatan, 'Ka. Instalasi Bedah Sentral');
-      setFieldAuto('reviewerNama', setReviewerNama, 'dr. Ratna Juwita, MARS');
-      setFieldAuto('reviewerJabatan', setReviewerJabatan, 'Manajer Pelayanan Medis');
+      setFieldAuto("noDokumen", setNoDokumen, `BDH/SPO/${year}/045`);
     } else if (
-      lower.includes('ppi') ||
-      lower.includes('infeksi') ||
-      lower.includes('sterilisasi') ||
-      lower.includes('cuci tangan')
+      lower.includes("ppi") ||
+      lower.includes("infeksi") ||
+      lower.includes("sterilisasi") ||
+      lower.includes("cuci tangan")
     ) {
-      setFieldAuto('noDokumen', setNoDokumen, `PPI/SPO/${year}/021`);
-      setFieldAuto('drafterNama', setDrafterNama, 'Ns. Siti Rahayu, S.Kep');
-      setFieldAuto('drafterJabatan', setDrafterJabatan, 'Infection Prevention & Control Nurse (IPCN)');
-      setFieldAuto('creatorNama', setCreatorNama, 'dr. Ratna Juwita, MARS');
-      setFieldAuto('creatorJabatan', setCreatorJabatan, 'Ketua Komite PPI RS');
-      setFieldAuto('reviewerNama', setReviewerNama, 'Nanang Judianto, SE');
-      setFieldAuto('reviewerJabatan', setReviewerJabatan, 'Pgs. Manajer SMI');
+      setFieldAuto("noDokumen", setNoDokumen, `PPI/SPO/${year}/021`);
     } else if (
-      lower.includes('rehabilitasi') ||
-      lower.includes('fisioterapi') ||
-      lower.includes('tlb')
+      lower.includes("rehabilitasi") ||
+      lower.includes("fisioterapi") ||
+      lower.includes("tlb")
     ) {
-      setFieldAuto('noDokumen', setNoDokumen, `QAP/${year}/770`);
-      setFieldAuto('drafterNama', setDrafterNama, 'Hana Thriesminarsih, S.Kes');
-      setFieldAuto('drafterJabatan', setDrafterJabatan, 'Karu Rehabilitasi Medik');
-      setFieldAuto('creatorNama', setCreatorNama, 'dr. Achmad Farid, Sp.KFR');
-      setFieldAuto('creatorJabatan', setCreatorJabatan, 'Ka. Instalasi Rehabilitasi Medik');
-      setFieldAuto('reviewerNama', setReviewerNama, 'Nanang Judianto, SE');
-      setFieldAuto('reviewerJabatan', setReviewerJabatan, 'Pgs. Manajer SMI');
+      setFieldAuto("noDokumen", setNoDokumen, `QAP/${year}/770`);
     }
   };
 
   const stepsList = [
-    'Menganalisis konteks operasional & regulasi kesehatan nasional...',
-    'Menyusun definisi istilah teknis & batasan ruang lingkup...',
-    'Merumuskan sasaran operasional terukur & ketentuan kebijakan...',
-    'Memetakan Risk Register (identifikasi risiko & mitigasi preventif)...',
-    'Menyusun tabel alur prosedur teknis, lead time & pelaksana fungsi...',
-    'Menghubungkan tanggung jawab unit kerja & diagram alur layanan...',
+    "Menganalisis konteks operasional & regulasi kesehatan nasional...",
+    "Menyusun definisi istilah teknis & batasan ruang lingkup...",
+    "Merumuskan sasaran operasional terukur & ketentuan kebijakan...",
+    "Memetakan Risk Register (identifikasi risiko & mitigasi preventif)...",
+    "Menyusun tabel alur prosedur teknis, lead time & pelaksana fungsi...",
+    "Menghubungkan tanggung jawab unit kerja & diagram alur layanan...",
   ];
 
   if (!isOpen) return null;
@@ -179,27 +136,44 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
     onGeneratingChange?.(val);
   };
 
+  const isMissingField = (val: string) => showValidation && !val.trim();
+
   const handleGenerate = async () => {
-    if (!judul.trim()) {
-      setErrorMsg('Judul SPO wajib diisi.');
+    const missingFields: string[] = [];
+    if (!judul.trim()) missingFields.push("Judul SPO");
+    if (!kepalaRumahSakit.trim()) missingFields.push("Nama Kepala Rumah Sakit");
+    if (!drafterNama.trim()) missingFields.push("Nama & Gelar Drafter");
+    if (!drafterJabatan.trim()) missingFields.push("Jabatan Drafter");
+    if (!creatorNama.trim()) missingFields.push("Nama & Gelar Creator");
+    if (!creatorJabatan.trim()) missingFields.push("Jabatan Creator");
+    if (!reviewerNama.trim()) missingFields.push("Nama & Gelar Reviewer");
+    if (!reviewerJabatan.trim()) missingFields.push("Jabatan Reviewer");
+
+    if (missingFields.length > 0) {
+      setShowValidation(true);
+      setErrorMsg(
+        `Kolom berikut wajib diisi dan tidak dapat dikosongkan: ${missingFields.join(", ")}.`,
+      );
+      bodyRef.current?.scrollTo({ top: 0, behavior: "smooth" });
       return;
     }
 
+    setShowValidation(false);
     setLoadingState(true);
     setErrorMsg(null);
     setCurrentStep(0);
 
     const payloadInstitusi = institusi;
     const payloadNoDokumen = noDokumen.trim();
-    const payloadNoRevisi = noRevisi.trim() || '0';
+    const payloadNoRevisi = noRevisi.trim() || "0";
     const payloadTanggalTerbit =
       tanggalTerbit.trim() ||
-      new Date().toLocaleDateString('id-ID', {
-        day: 'numeric',
-        month: 'long',
-        year: 'numeric',
+      new Date().toLocaleDateString("id-ID", {
+        day: "numeric",
+        month: "long",
+        year: "numeric",
       });
-    const payloadKepalaRS = kepalaRumahSakit.trim() || 'dr. Tolib Bahasuan';
+    const payloadKepalaRS = kepalaRumahSakit.trim();
     const payloadDrafterNama = drafterNama.trim();
     const payloadDrafterJabatan = drafterJabatan.trim();
     const payloadCreatorNama = creatorNama.trim();
@@ -215,9 +189,9 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
     const timeoutId = window.setTimeout(() => controller.abort(), 55000);
 
     try {
-      const response = await fetch('/api/generate-spo', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const response = await fetch("/api/generate-spo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         signal: controller.signal,
         body: JSON.stringify({
           judul: judul.trim(),
@@ -233,7 +207,7 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
           reviewerNama: payloadReviewerNama,
           reviewerJabatan: payloadReviewerJabatan,
           konteksTambahan: konteksTambahan.trim(),
-          mode: 'gemini',
+          mode: "gemini",
         }),
       });
 
@@ -252,7 +226,7 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
         const reason =
           resData?.error ||
           resData?.details ||
-          `HTTP ${response.status}${rawText ? '' : ' (Respons kosong)'}`;
+          `HTTP ${response.status}${rawText ? "" : " (Respons kosong)"}`;
         const fallback = generateSmartSpoDocument({
           judul: judul.trim(),
           institusi: payloadInstitusi,
@@ -260,17 +234,17 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
           noRevisi: payloadNoRevisi,
           tanggalTerbit: payloadTanggalTerbit,
           kepalaRumahSakit: payloadKepalaRS,
-          drafterNama: payloadDrafterNama || undefined,
-          drafterJabatan: payloadDrafterJabatan || undefined,
-          creatorNama: payloadCreatorNama || undefined,
-          creatorJabatan: payloadCreatorJabatan || undefined,
-          reviewerNama: payloadReviewerNama || undefined,
-          reviewerJabatan: payloadReviewerJabatan || undefined,
+          drafterNama: payloadDrafterNama,
+          drafterJabatan: payloadDrafterJabatan,
+          creatorNama: payloadCreatorNama,
+          creatorJabatan: payloadCreatorJabatan,
+          reviewerNama: payloadReviewerNama,
+          reviewerJabatan: payloadReviewerJabatan,
           konteksTambahan: konteksTambahan.trim(),
         });
         onGenerated(
           fallback,
-          `Dokumen & diagram alur disusun menggunakan Generator Lokal (${reason}).`
+          `Dokumen & diagram alur disusun menggunakan Generator Lokal (${reason}).`,
         );
         onClose();
         return;
@@ -290,8 +264,11 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
     } catch (err: any) {
       clearInterval(stepInterval);
       clearTimeout(timeoutId);
-      console.warn('API request error, falling back to smart hospital engine:', err);
-      const isTimeout = err?.name === 'AbortError';
+      console.warn(
+        "API request error, falling back to smart hospital engine:",
+        err,
+      );
+      const isTimeout = err?.name === "AbortError";
       try {
         const fallback = generateSmartSpoDocument({
           judul: judul.trim(),
@@ -300,23 +277,25 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
           noRevisi: payloadNoRevisi,
           tanggalTerbit: payloadTanggalTerbit,
           kepalaRumahSakit: payloadKepalaRS,
-          drafterNama: payloadDrafterNama || undefined,
-          drafterJabatan: payloadDrafterJabatan || undefined,
-          creatorNama: payloadCreatorNama || undefined,
-          creatorJabatan: payloadCreatorJabatan || undefined,
-          reviewerNama: payloadReviewerNama || undefined,
-          reviewerJabatan: payloadReviewerJabatan || undefined,
+          drafterNama: payloadDrafterNama,
+          drafterJabatan: payloadDrafterJabatan,
+          creatorNama: payloadCreatorNama,
+          creatorJabatan: payloadCreatorJabatan,
+          reviewerNama: payloadReviewerNama,
+          reviewerJabatan: payloadReviewerJabatan,
           konteksTambahan: konteksTambahan.trim(),
         });
         onGenerated(
           fallback,
           isTimeout
-            ? 'Waktu tunggu server habis; dokumen & diagram alur otomatis disusun menggunakan Generator Lokal.'
-            : 'Koneksi API terganggu; dokumen & diagram alur otomatis disusun menggunakan Generator Lokal.'
+            ? "Waktu tunggu server habis; dokumen & diagram alur otomatis disusun menggunakan Generator Lokal."
+            : "Koneksi API terganggu; dokumen & diagram alur otomatis disusun menggunakan Generator Lokal.",
         );
         onClose();
       } catch (_innerErr: any) {
-        setErrorMsg('Gagal menyusun dokumen. Silakan periksa isian formulir dan coba kembali.');
+        setErrorMsg(
+          "Gagal menyusun dokumen. Silakan periksa isian formulir dan coba kembali.",
+        );
       }
     } finally {
       setLoadingState(false);
@@ -340,9 +319,7 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
               <h3 className="font-bold text-slate-900 text-base">
                 Formulir Generator Dokumen SPO
               </h3>
-              <p className="text-xs text-slate-500">
-                Rumah Sakit Semen Gresik
-              </p>
+              <p className="text-xs text-slate-500">Rumah Sakit Semen Gresik</p>
             </div>
           </div>
           <button
@@ -355,14 +332,21 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
         </div>
 
         {/* Body Form */}
-        <div className="p-6 overflow-y-auto space-y-5 text-xs text-slate-700">
+        <div
+          ref={bodyRef}
+          className="p-6 overflow-y-auto space-y-5 text-xs text-slate-700"
+        >
           {errorMsg && (
             <div className="p-4 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 space-y-2.5">
               <div className="flex items-start space-x-2.5">
                 <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
                 <div className="flex-1">
-                  <div className="font-bold text-rose-900 mb-0.5">Penjelasan Kendala Pemrosesan:</div>
-                  <div className="text-xs leading-relaxed text-rose-700">{errorMsg}</div>
+                  <div className="font-bold text-rose-900 mb-0.5">
+                    Kelengkapan Formulir Wajib Diisi:
+                  </div>
+                  <div className="text-xs leading-relaxed text-rose-700">
+                    {errorMsg}
+                  </div>
                 </div>
               </div>
             </div>
@@ -383,14 +367,21 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
                 value={judul}
                 onChange={(e) => handleJudulChange(e.target.value)}
                 rows={2}
+                required
                 placeholder="Contoh: TRIASE DAN PENETAPAN PRIORITAS PASIEN GAWAT DARURAT DI INSTALASI GAWAT DARURAT (IGD)"
-                className="w-full text-xs font-semibold rounded-lg border-slate-300 bg-white p-2.5 border uppercase focus:ring-emerald-500 focus:border-emerald-500"
+                className={`w-full text-xs font-semibold rounded-lg p-2.5 border uppercase focus:ring-emerald-500 focus:border-emerald-500 ${
+                  isMissingField(judul)
+                    ? "border-rose-400 bg-rose-50/40"
+                    : "border-slate-300 bg-white"
+                }`}
               />
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">No. Dokumen</label>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  No. Dokumen
+                </label>
                 <input
                   type="text"
                   value={noDokumen}
@@ -404,7 +395,9 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">No. Revisi</label>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  No. Revisi
+                </label>
                 <input
                   type="text"
                   value={noRevisi}
@@ -415,7 +408,9 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1">Tanggal Terbit</label>
+                <label className="block font-semibold text-slate-700 mb-1">
+                  Tanggal Terbit
+                </label>
                 <input
                   type="text"
                   value={tanggalTerbit}
@@ -426,38 +421,38 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
               </div>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">
-                  Nama Kepala Rumah Sakit
-                </label>
-                <input
-                  type="text"
-                  value={kepalaRumahSakit}
-                  onChange={(e) => setKepalaRumahSakit(e.target.value)}
-                  placeholder="Contoh: dr. Tolib Bahasuan (Otomatis jika kosong)"
-                  className="w-full rounded-lg border-slate-300 bg-white p-2 border font-semibold text-slate-900"
-                />
-              </div>
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1">
-                  Institusi / Korporasi
-                </label>
-                <div className="w-full rounded-lg border border-slate-200 bg-slate-100 p-2 text-xs font-semibold text-slate-800 flex items-center justify-between">
-                  <span className="truncate">{institusi}</span>
-                  <span className="text-[10px] bg-emerald-100 text-emerald-800 font-bold px-2 py-0.5 rounded shrink-0 ml-2">
-                    Ditetapkan
-                  </span>
-                </div>
-              </div>
+            <div>
+              <label className="block font-semibold text-slate-700 mb-1">
+                Nama Kepala Rumah Sakit <span className="text-rose-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={kepalaRumahSakit}
+                onChange={(e) => setKepalaRumahSakit(e.target.value)}
+                required
+                placeholder="Wajib diisi — contoh: dr. Tolib Bahasuan"
+                className={`w-full rounded-lg p-2 border font-semibold text-slate-900 focus:ring-emerald-500 focus:border-emerald-500 ${
+                  isMissingField(kepalaRumahSakit)
+                    ? "border-rose-400 bg-rose-50/40"
+                    : "border-slate-300 bg-white"
+                }`}
+              />
             </div>
           </div>
 
           {/* Section: Lembar Pengesahan */}
           <div className="p-4 rounded-xl border border-slate-200 bg-slate-50/50 space-y-3.5">
-            <div className="flex items-center space-x-2 font-bold text-slate-900 border-b border-slate-200 pb-2">
-              <UserCheck className="w-4 h-4 text-emerald-600" />
-              <span>Bagian Lembar Pengesahan (Drafter, Creator, Reviewer)</span>
+            <div className="flex items-center justify-between border-b border-slate-200 pb-2">
+              <div className="flex items-center space-x-2 font-bold text-slate-900">
+                <UserCheck className="w-4 h-4 text-emerald-600" />
+                <span>
+                  Bagian Lembar Pengesahan (Drafter, Creator, Reviewer){" "}
+                  <span className="text-rose-500">*</span>
+                </span>
+              </div>
+              <span className="text-[11px] font-medium text-rose-600">
+                Wajib diisi lengkap
+              </span>
             </div>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -467,7 +462,9 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
                   Drafter
                 </span>
                 <div>
-                  <label className="block text-[10px] text-slate-500 mb-0.5">Nama & Gelar</label>
+                  <label className="block text-[10px] font-semibold text-slate-600 mb-0.5">
+                    Nama & Gelar <span className="text-rose-500">*</span>
+                  </label>
                   <input
                     type="text"
                     value={drafterNama}
@@ -475,12 +472,19 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
                       manualEditsRef.current.drafterNama = true;
                       setDrafterNama(e.target.value);
                     }}
-                    placeholder="Otomatis menyesuaikan topik"
-                    className="w-full rounded border-slate-300 p-1.5 border text-xs"
+                    required
+                    placeholder="Wajib diisi nama & gelar"
+                    className={`w-full rounded p-1.5 border text-xs ${
+                      isMissingField(drafterNama)
+                        ? "border-rose-400 bg-rose-50/40"
+                        : "border-slate-300 bg-white"
+                    }`}
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] text-slate-500 mb-0.5">Jabatan</label>
+                  <label className="block text-[10px] font-semibold text-slate-600 mb-0.5">
+                    Jabatan <span className="text-rose-500">*</span>
+                  </label>
                   <input
                     type="text"
                     value={drafterJabatan}
@@ -488,8 +492,13 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
                       manualEditsRef.current.drafterJabatan = true;
                       setDrafterJabatan(e.target.value);
                     }}
-                    placeholder="Otomatis menyesuaikan topik"
-                    className="w-full rounded border-slate-300 p-1.5 border text-xs"
+                    required
+                    placeholder="Wajib diisi jabatan"
+                    className={`w-full rounded p-1.5 border text-xs ${
+                      isMissingField(drafterJabatan)
+                        ? "border-rose-400 bg-rose-50/40"
+                        : "border-slate-300 bg-white"
+                    }`}
                   />
                 </div>
               </div>
@@ -500,7 +509,9 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
                   Creator
                 </span>
                 <div>
-                  <label className="block text-[10px] text-slate-500 mb-0.5">Nama & Gelar</label>
+                  <label className="block text-[10px] font-semibold text-slate-600 mb-0.5">
+                    Nama & Gelar <span className="text-rose-500">*</span>
+                  </label>
                   <input
                     type="text"
                     value={creatorNama}
@@ -508,12 +519,19 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
                       manualEditsRef.current.creatorNama = true;
                       setCreatorNama(e.target.value);
                     }}
-                    placeholder="Otomatis menyesuaikan topik"
-                    className="w-full rounded border-slate-300 p-1.5 border text-xs"
+                    required
+                    placeholder="Wajib diisi nama & gelar"
+                    className={`w-full rounded p-1.5 border text-xs ${
+                      isMissingField(creatorNama)
+                        ? "border-rose-400 bg-rose-50/40"
+                        : "border-slate-300 bg-white"
+                    }`}
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] text-slate-500 mb-0.5">Jabatan</label>
+                  <label className="block text-[10px] font-semibold text-slate-600 mb-0.5">
+                    Jabatan <span className="text-rose-500">*</span>
+                  </label>
                   <input
                     type="text"
                     value={creatorJabatan}
@@ -521,8 +539,13 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
                       manualEditsRef.current.creatorJabatan = true;
                       setCreatorJabatan(e.target.value);
                     }}
-                    placeholder="Otomatis menyesuaikan topik"
-                    className="w-full rounded border-slate-300 p-1.5 border text-xs"
+                    required
+                    placeholder="Wajib diisi jabatan"
+                    className={`w-full rounded p-1.5 border text-xs ${
+                      isMissingField(creatorJabatan)
+                        ? "border-rose-400 bg-rose-50/40"
+                        : "border-slate-300 bg-white"
+                    }`}
                   />
                 </div>
               </div>
@@ -533,7 +556,9 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
                   Reviewer
                 </span>
                 <div>
-                  <label className="block text-[10px] text-slate-500 mb-0.5">Nama & Gelar</label>
+                  <label className="block text-[10px] font-semibold text-slate-600 mb-0.5">
+                    Nama & Gelar <span className="text-rose-500">*</span>
+                  </label>
                   <input
                     type="text"
                     value={reviewerNama}
@@ -541,12 +566,19 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
                       manualEditsRef.current.reviewerNama = true;
                       setReviewerNama(e.target.value);
                     }}
-                    placeholder="Otomatis menyesuaikan topik"
-                    className="w-full rounded border-slate-300 p-1.5 border text-xs"
+                    required
+                    placeholder="Wajib diisi nama & gelar"
+                    className={`w-full rounded p-1.5 border text-xs ${
+                      isMissingField(reviewerNama)
+                        ? "border-rose-400 bg-rose-50/40"
+                        : "border-slate-300 bg-white"
+                    }`}
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] text-slate-500 mb-0.5">Jabatan</label>
+                  <label className="block text-[10px] font-semibold text-slate-600 mb-0.5">
+                    Jabatan <span className="text-rose-500">*</span>
+                  </label>
                   <input
                     type="text"
                     value={reviewerJabatan}
@@ -554,8 +586,13 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
                       manualEditsRef.current.reviewerJabatan = true;
                       setReviewerJabatan(e.target.value);
                     }}
-                    placeholder="Otomatis menyesuaikan topik"
-                    className="w-full rounded border-slate-300 p-1.5 border text-xs"
+                    required
+                    placeholder="Wajib diisi jabatan"
+                    className={`w-full rounded p-1.5 border text-xs ${
+                      isMissingField(reviewerJabatan)
+                        ? "border-rose-400 bg-rose-50/40"
+                        : "border-slate-300 bg-white"
+                    }`}
                   />
                 </div>
               </div>
@@ -582,7 +619,8 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
               <div className="flex items-center space-x-3 mb-2">
                 <div className="w-5 h-5 border-2 border-emerald-600 border-t-transparent rounded-full animate-spin" />
                 <span className="font-bold text-emerald-900 text-xs">
-                  Sedang menyusun dokumen SPO standar rumah sakit secara otomatis...
+                  Sedang menyusun dokumen SPO standar rumah sakit secara
+                  otomatis...
                 </span>
               </div>
               <p className="text-xs text-emerald-700 pl-8 font-medium">
@@ -606,7 +644,7 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
           <button
             type="button"
             onClick={handleGenerate}
-            disabled={isLoading || !judul.trim()}
+            disabled={isLoading}
             className="flex items-center space-x-2 px-6 py-2.5 text-xs font-bold text-white bg-emerald-600 hover:bg-emerald-700 rounded-xl shadow-xs transition-all disabled:opacity-50 cursor-pointer"
           >
             {isLoading ? (
