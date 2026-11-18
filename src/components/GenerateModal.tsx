@@ -186,7 +186,7 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
     }, 1500);
 
     const controller = new AbortController();
-    const timeoutId = window.setTimeout(() => controller.abort(), 55000);
+    const timeoutId = window.setTimeout(() => controller.abort(), 65000);
 
     try {
       const response = await fetch("/api/generate-spo", {
