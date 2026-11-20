@@ -1,7 +1,6 @@
 import express from "express";
 import dotenv from "dotenv";
 import { GoogleGenAI, Type, ThinkingLevel } from "@google/genai";
-import { generateSmartSpoDocument } from "../utils/spoGeneratorEngine.js";
 import { buildFlowchartModelFromSpo } from "../utils/flowchartHelper.js";
 import { normalizeRiwayatPerubahan } from "../utils/spoFormatHelper.js";
 
@@ -249,7 +248,7 @@ apiApp.get("/api/health", async (req, res) => {
     geminiConfigured,
     openRouterConfigured,
     openRouterModel,
-    hybridPriority: ["gemini", "openrouter", "smart_engine"],
+    hybridPriority: ["gemini", "openrouter"],
     runtime: process.env.VERCEL ? "vercel" : "node",
     timestamp: new Date().toISOString(),
   };
@@ -346,7 +345,7 @@ apiApp.get("/api/health", async (req, res) => {
     ? "gemini"
     : openRouterValid
       ? "openrouter"
-      : "smart_engine";
+      : "none";
 
   const diagnosisParts: string[] = [];
   if (geminiValid) {
@@ -488,7 +487,10 @@ function extractJsonFromModelText(rawText: string): any {
   }
 }
 
-async function generateSpoWithOpenRouter(prompt: string): Promise<{
+async function requestOpenRouterJson(
+  systemInstruction: string,
+  userPrompt: string,
+): Promise<{
   parsedJson: any;
   modelUsed: string;
 }> {
@@ -503,7 +505,6 @@ async function generateSpoWithOpenRouter(prompt: string): Promise<{
   const appReferer = (
     process.env.APP_URL || "https://spo-generator-rssg.vercel.app"
   ).trim();
-  const fullPrompt = `${prompt}\n\n${SPO_OPENROUTER_JSON_CONTRACT}`;
 
   let lastError: any = null;
 
@@ -513,8 +514,8 @@ async function generateSpoWithOpenRouter(prompt: string): Promise<{
         const requestBody: Record<string, any> = {
           model: modelName,
           messages: [
-            { role: "system", content: SPO_SYSTEM_INSTRUCTION },
-            { role: "user", content: fullPrompt },
+            { role: "system", content: systemInstruction },
+            { role: "user", content: userPrompt },
           ],
           temperature: 0.3,
           max_tokens: 4500,
@@ -542,7 +543,6 @@ async function generateSpoWithOpenRouter(prompt: string): Promise<{
         if (!resp.ok) {
           const errMsg = `OpenRouter HTTP ${resp.status}: ${rawBody}`;
           const lower = errMsg.toLowerCase();
-          // If provider rejects json_object response_format, retry same model without it
           if (
             useResponseFormat &&
             resp.status === 400 &&
@@ -573,13 +573,22 @@ async function generateSpoWithOpenRouter(prompt: string): Promise<{
         return { parsedJson, modelUsed: resolvedModel };
       } catch (err: any) {
         lastError = err;
-        // Only retry same model without response_format if useResponseFormat was true & error was 400 format rejection (handled above)
         break;
       }
     }
   }
 
   throw lastError || new Error("OpenRouter tidak merespons");
+}
+
+async function generateSpoWithOpenRouter(prompt: string): Promise<{
+  parsedJson: any;
+  modelUsed: string;
+}> {
+  return requestOpenRouterJson(
+    SPO_SYSTEM_INSTRUCTION,
+    `${prompt}\n\n${SPO_OPENROUTER_JSON_CONTRACT}`,
+  );
 }
 
 interface AssembleSpoParams {
@@ -807,7 +816,6 @@ apiApp.post("/api/generate-spo", async (req, res) => {
     creatorJabatan,
     reviewerNama,
     reviewerJabatan,
-    mode, // 'gemini' | 'smart_template'
   } = req.body;
 
   if (!judul || !judul.trim()) {
@@ -829,40 +837,7 @@ apiApp.post("/api/generate-spo", async (req, res) => {
     });
   }
 
-  // If user selected instant smart template generation, execute directly
-  if (mode === "smart_template") {
-    try {
-      const generatedDoc = generateSmartSpoDocument({
-        judul,
-        institusi,
-        konteksTambahan,
-        unitTerkait,
-        noDokumen,
-        noRevisi,
-        tanggalTerbit,
-        kepalaRumahSakit,
-        drafterNama,
-        drafterJabatan,
-        creatorNama,
-        creatorJabatan,
-        reviewerNama,
-        reviewerJabatan,
-      });
-      return res.json({
-        success: true,
-        data: generatedDoc,
-        source: "smart_engine",
-        notice:
-          "Dokumen SPO berhasil disusun menggunakan Generator Standar Akreditasi Rumah Sakit (Mode Cepat).",
-      });
-    } catch (e: any) {
-      return res
-        .status(500)
-        .json({ error: "Gagal membuat dokumen SPO", details: e.message });
-    }
-  }
-
-  // Hybrid AI Pipeline: 1. Gemini -> 2. OpenRouter -> 3. Local Smart Hospital Engine
+  // Hybrid AI Pipeline: 1. Gemini -> 2. OpenRouter
   const todayFormattedPrompt = new Date().toLocaleDateString("id-ID", {
     day: "numeric",
     month: "long",
@@ -1190,29 +1165,175 @@ Pastikan data teknis, klausul kebijakan, tabel risk register, dan uraian alur pr
     } catch (error: any) {
       openRouterError = error;
       console.warn(
-        "OpenRouter AI call failed or unavailable. Falling back to Smart Hospital SPO Engine:",
+        "OpenRouter AI call failed or unavailable:",
         error?.message || error,
       );
     }
   }
 
-  // 3. Final fallback: Local Smart Hospital SPO Engine (never fails)
-  const fallbackSPO = generateSmartSpoDocument({
-    judul,
-    institusi,
-    konteksTambahan,
-    unitTerkait,
-    noDokumen,
-    noRevisi,
-    tanggalTerbit,
-    kepalaRumahSakit,
-    drafterNama,
-    drafterJabatan,
-    creatorNama,
-    creatorJabatan,
-    reviewerNama,
-    reviewerJabatan,
+  // Both Gemini and OpenRouter unavailable/failed — return explicit error (no local generator fallback)
+  const geminiClass = classifyGeminiError(
+    geminiError ||
+      new Error("API_KEY_NOT_CONFIGURED: GEMINI_API_KEY belum disetel"),
+  );
+  const openRouterClass = classifyOpenRouterError(
+    openRouterError ||
+      new Error(
+        "OPENROUTER_KEY_NOT_CONFIGURED: OPENROUTER_API_KEY belum disetel",
+      ),
+  );
+
+  let combinedError = "";
+  if (geminiConfigured && openRouterConfigured) {
+    combinedError = `${geminiClass.notice} ${openRouterClass.notice} Silakan periksa API Key / kuota atau coba sesaat lagi.`;
+  } else if (geminiConfigured) {
+    combinedError = `${geminiClass.notice} OPENROUTER_API_KEY juga belum terpasang sebagai cadangan.`;
+  } else if (openRouterConfigured) {
+    combinedError = `${openRouterClass.notice} GEMINI_API_KEY juga belum terpasang.`;
+  } else {
+    combinedError =
+      "GEMINI_API_KEY dan OPENROUTER_API_KEY belum terpasang di Environment Variables (.env / Vercel). Minimal salah satu API Key AI wajib dikonfigurasi.";
+  }
+
+  const statusCode = !geminiConfigured && !openRouterConfigured ? 500 : 503;
+
+  return res.status(statusCode).json({
+    success: false,
+    error: combinedError,
+    needsNewKey: geminiClass.needsNewKey && openRouterClass.needsNewKey,
+    errorCategory: openRouterConfigured
+      ? openRouterClass.category
+      : geminiClass.category,
+    details: openRouterError ? openRouterClass.detail : geminiClass.detail,
   });
+});
+
+// API endpoint to refine a specific section (Gemini -> OpenRouter)
+apiApp.post("/api/refine-section", async (req, res) => {
+  const { sectionType, currentContent, promptInstruction, judulSpo } = req.body;
+
+  if (!sectionType || !currentContent) {
+    return res
+      .status(400)
+      .json({ error: "Informasi bagian dokumen belum lengkap" });
+  }
+
+  const expectArray =
+    sectionType === "tujuan" ||
+    sectionType === "prosedur" ||
+    sectionType === "tanggungJawabUnit";
+
+  const prompt = `Anda sedang menyempurnakan bagian dokumen Standar Prosedur Operasional (SPO) rumah sakit berjudul "${judulSpo || "SPO"}".
+Bagian yang disempurnakan: ${sectionType}
+Instruksi Pengguna: ${promptInstruction || "Tingkatkan akurasi, kedalaman, dan kepatuhan standar akreditasi rumah sakit."}
+
+Konten saat ini (JSON):
+${JSON.stringify(currentContent, null, 2)}
+
+Hasilkan perbaikan konten yang lebih komprehensif, terstruktur, dan presisi tinggi dalam format JSON dengan struktur field persis sama dengan input.${
+    expectArray
+      ? " Kembalikan langsung JSON Array `[...]` yang sesuai struktur elemen di atas."
+      : ""
+  }`;
+
+  const normalizeRefinedShape = (parsed: any) => {
+    if (
+      expectArray &&
+      !Array.isArray(parsed) &&
+      parsed &&
+      typeof parsed === "object"
+    ) {
+      const candidateKey =
+        parsed[sectionType] ||
+        parsed.items ||
+        parsed.data ||
+        Object.values(parsed).find((v) => Array.isArray(v));
+      if (Array.isArray(candidateKey)) {
+        return candidateKey;
+      }
+      throw new Error(
+        "Format JSON hasil penyempurnaan tidak sesuai array yang diharapkan",
+      );
+    }
+    return parsed;
+  };
+
+  let geminiError: any = null;
+  const geminiConfigured = isGeminiApiKeyConfigured();
+
+  if (geminiConfigured) {
+    try {
+      const ai = getGeminiClient();
+      let response;
+      const modelCandidates = ["gemini-4-hydrogen", "gemini-3.1-flash-lite"];
+      let lastRefineError: any = null;
+
+      for (const modelName of modelCandidates) {
+        try {
+          const refineConfig: any = {
+            systemInstruction: SPO_SYSTEM_INSTRUCTION,
+            responseMimeType: "application/json",
+          };
+          if (modelName === "gemini-4-hydrogen") {
+            refineConfig.thinkingConfig = { thinkingLevel: ThinkingLevel.LOW };
+          }
+          response = await ai.models.generateContent({
+            model: modelName,
+            contents: prompt,
+            config: refineConfig,
+          });
+          if (response && response.text) {
+            break;
+          }
+        } catch (err: any) {
+          lastRefineError = err;
+          console.warn(
+            `Refine model ${modelName} error: ${err.message}. Trying next candidate...`,
+          );
+        }
+      }
+
+      if (!response || !response.text) {
+        throw (
+          lastRefineError ||
+          new Error("Tidak ada model refine Gemini yang merespons")
+        );
+      }
+
+      const parsedJson = normalizeRefinedShape(
+        extractJsonFromModelText(response.text),
+      );
+      return res.json({
+        success: true,
+        refinedContent: parsedJson,
+        source: "gemini",
+      });
+    } catch (error: any) {
+      geminiError = error;
+    }
+  }
+
+  let openRouterError: any = null;
+  const openRouterConfigured = isOpenRouterApiKeyConfigured();
+
+  if (openRouterConfigured) {
+    try {
+      const orPrompt = `${prompt}\n\nKembalikan HANYA JSON valid tanpa teks tambahan.`;
+      const orRes = await requestOpenRouterJson(
+        SPO_SYSTEM_INSTRUCTION,
+        orPrompt,
+      );
+      const parsedJson = normalizeRefinedShape(orRes.parsedJson);
+      return res.json({
+        success: true,
+        refinedContent: parsedJson,
+        source: "openrouter",
+        modelUsed: orRes.modelUsed,
+      });
+    } catch (error: any) {
+      openRouterError = error;
+    }
+  }
 
   const geminiClass = classifyGeminiError(
     geminiError ||
@@ -1225,201 +1346,18 @@ Pastikan data teknis, klausul kebijakan, tabel risk register, dan uraian alur pr
       ),
   );
 
-  let combinedNotice = "";
-  if (geminiConfigured && openRouterConfigured) {
-    combinedNotice = `${geminiClass.notice} ${openRouterClass.notice} Sementara menggunakan Generator Standar Lokal.`;
-  } else if (geminiConfigured) {
-    combinedNotice = `${geminiClass.notice} OPENROUTER_API_KEY belum terpasang sebagai cadangan. Sementara menggunakan Generator Standar Lokal.`;
-  } else if (openRouterConfigured) {
-    combinedNotice = `${openRouterClass.notice} GEMINI_API_KEY belum terpasang. Sementara menggunakan Generator Standar Lokal.`;
-  } else {
-    combinedNotice =
-      "GEMINI_API_KEY dan OPENROUTER_API_KEY belum terpasang. Dokumen sementara disusun menggunakan Generator Standar Lokal.";
-  }
+  const errorMessage =
+    geminiConfigured || openRouterConfigured
+      ? `${geminiConfigured ? geminiClass.notice : ""} ${openRouterConfigured ? openRouterClass.notice : ""}`.trim()
+      : "GEMINI_API_KEY dan OPENROUTER_API_KEY belum terpasang.";
 
-  return res.json({
-    success: true,
-    data: fallbackSPO,
-    source: "smart_engine",
-    fallbackUsed: true,
-    needsNewKey: geminiClass.needsNewKey && openRouterClass.needsNewKey,
-    errorCategory: openRouterConfigured
-      ? openRouterClass.category
-      : geminiClass.category,
-    notice: combinedNotice,
-    errorDetail: openRouterError ? openRouterClass.detail : geminiClass.detail,
-  });
-});
-
-// API endpoint to refine a specific section
-apiApp.post("/api/refine-section", async (req, res) => {
-  const { sectionType, currentContent, promptInstruction, judulSpo } = req.body;
-
-  if (!sectionType || !currentContent) {
-    return res
-      .status(400)
-      .json({ error: "Informasi bagian dokumen belum lengkap" });
-  }
-
-  try {
-    const ai = getGeminiClient();
-
-    const expectArray =
-      sectionType === "tujuan" ||
-      sectionType === "prosedur" ||
-      sectionType === "tanggungJawabUnit";
-
-    const prompt = `Anda sedang menyempurnakan bagian dokumen Standar Prosedur Operasional (SPO) rumah sakit berjudul "${judulSpo || "SPO"}".
-Bagian yang disempurnakan: ${sectionType}
-Instruksi Pengguna: ${promptInstruction || "Tingkatkan akurasi, kedalaman, dan kepatuhan standar akreditasi rumah sakit."}
-
-Konten saat ini (JSON):
-${JSON.stringify(currentContent, null, 2)}
-
-Hasilkan perbaikan konten yang lebih komprehensif, terstruktur, dan presisi tinggi dalam format JSON dengan struktur field persis sama dengan input.${
-      expectArray
-        ? " Kembalikan langsung JSON Array `[...]` yang sesuai struktur elemen di atas."
-        : ""
-    }`;
-
-    let response;
-    const modelCandidates = ["gemini-4-hydrogen", "gemini-3.1-flash-lite"];
-    let lastRefineError: any = null;
-
-    for (const modelName of modelCandidates) {
-      try {
-        const refineConfig: any = {
-          systemInstruction: SPO_SYSTEM_INSTRUCTION,
-          responseMimeType: "application/json",
-        };
-        if (modelName === "gemini-4-hydrogen") {
-          refineConfig.thinkingConfig = { thinkingLevel: ThinkingLevel.LOW };
-        }
-        response = await ai.models.generateContent({
-          model: modelName,
-          contents: prompt,
-          config: refineConfig,
-        });
-        if (response && response.text) {
-          break;
-        }
-      } catch (err: any) {
-        lastRefineError = err;
-        console.warn(
-          `Refine model ${modelName} error: ${err.message}. Trying next candidate...`,
-        );
-      }
-    }
-
-    if (!response || !response.text) {
-      throw (
-        lastRefineError || new Error("Tidak ada model refine yang merespons")
-      );
-    }
-
-    let parsedJson = JSON.parse(response.text || "{}");
-
-    if (
-      expectArray &&
-      !Array.isArray(parsedJson) &&
-      parsedJson &&
-      typeof parsedJson === "object"
-    ) {
-      const candidateKey =
-        parsedJson[sectionType] ||
-        parsedJson.items ||
-        parsedJson.data ||
-        Object.values(parsedJson).find((v) => Array.isArray(v));
-      if (Array.isArray(candidateKey)) {
-        parsedJson = candidateKey;
-      } else {
-        throw new Error(
-          "Format JSON hasil penyempurnaan tidak sesuai array yang diharapkan",
-        );
-      }
-    }
-
-    return res.json({
-      success: true,
-      refinedContent: parsedJson,
-      source: "gemini",
+  return res
+    .status(!geminiConfigured && !openRouterConfigured ? 500 : 503)
+    .json({
+      success: false,
+      error: errorMessage,
+      details: openRouterError ? openRouterClass.detail : geminiClass.detail,
     });
-  } catch (error: any) {
-    console.warn(
-      "Gemini refine call failed, applying smart heuristic refinement:",
-      error.message,
-    );
-
-    let refined = JSON.parse(JSON.stringify(currentContent));
-
-    if (sectionType === "pengertian") {
-      if (!refined.definisi || !Array.isArray(refined.definisi))
-        refined.definisi = [];
-      refined.definisi.push({
-        istilah: "Kendali Mutu dan Audit Kepatuhan Prosedur",
-        penjelasan:
-          "Mekanisme pengawasan berkala dan evaluasi sistematis terhadap pelaksanaan prosedur untuk menjamin kepatuhan standar akreditasi KARS/JCI.",
-      });
-    } else if (sectionType === "tujuan") {
-      if (!Array.isArray(refined)) refined = [];
-      refined.push({
-        judulTujuan: "Pencegahan Insiden & Kepatuhan Audit Akreditasi",
-        deskripsi:
-          "Menjamin seluruh tindakan terdokumentasi sah pada Rekam Medis Elektronik dan lolos verifikasi standar mutu rumah sakit.",
-      });
-    } else if (sectionType === "kebijakan") {
-      if (!refined.ketentuan || !Array.isArray(refined.ketentuan))
-        refined.ketentuan = [];
-      refined.ketentuan.push(
-        "Klausul Verifikasi Ganda: Seluruh tahapan kritis wajib melalui otorisasi dan pemeriksaan silang oleh petugas berwenang.",
-      );
-      if (Array.isArray(refined.riskRegister)) {
-        refined.riskRegister.push({
-          kode: `R${refined.riskRegister.length + 1}`,
-          proses: "Pengawasan Mutu & Audit Dokumentasi",
-          namaRisiko: "Ketidaklengkapan Dokumentasi Real-Time",
-          deskripsiRisiko:
-            "Pencatatan tidak dilakukan segera pada sistem setelah tindakan selesai dilaksanakan.",
-          mitigasi: [
-            "Wajibkan entri rekam medis elektronik sebelum pergantian shift.",
-            "Audit sampling kepatuhan berkala oleh Komite Mutu.",
-          ],
-        });
-      }
-    } else if (sectionType === "prosedur") {
-      if (Array.isArray(refined) && refined.length > 0) {
-        refined = refined.map((p: any) => ({
-          ...p,
-          langkah: [
-            ...(p.langkah || []),
-            "Lakukan konfirmasi ulang dan pencatatan audit trail pada sistem informasi.",
-          ],
-        }));
-      }
-    } else if (sectionType === "tanggungJawabUnit") {
-      if (!Array.isArray(refined)) refined = [];
-      refined.push({
-        unit: "Komite Mutu & Keselamatan Pasien / Manajemen Risiko",
-        tugas: [
-          "Melakukan pemantauan berkala terhadap indikator mutu dan kepatuhan pelaksanaan SPO.",
-          "Mengevaluasi laporan insiden serta merekomendasikan revisi perbaikan prosedur.",
-        ],
-      });
-    }
-
-    const classified = classifyGeminiError(error);
-
-    return res.json({
-      success: true,
-      refinedContent: refined,
-      source: "smart_engine",
-      fallbackUsed: true,
-      needsNewKey: classified.needsNewKey,
-      errorCategory: classified.category,
-      notice: classified.notice,
-      errorDetail: classified.detail,
-    });
-  }
 });
 
 // Catch unmatched /api/* routes with JSON 404 so Vite SPA middleware never returns HTML for API paths

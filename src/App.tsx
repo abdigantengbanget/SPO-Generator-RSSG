@@ -37,7 +37,8 @@ export default function App() {
     const duration =
       type === "error" ||
       message.includes("GEMINI_API_KEY") ||
-      message.includes("Generator")
+      message.includes("OPENROUTER_API_KEY") ||
+      message.includes("OpenRouter")
         ? 7500
         : 4500;
     toastTimerRef.current = window.setTimeout(() => {

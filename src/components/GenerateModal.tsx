@@ -1,7 +1,6 @@
 import React, { useState, useRef } from "react";
 import { X, FileText, UserCheck, AlertCircle } from "lucide-react";
 import { SpoDocument } from "../types/spo";
-import { generateSmartSpoDocument } from "../utils/spoGeneratorEngine";
 import { buildFlowchartModelFromSpo } from "../utils/flowchartHelper";
 
 interface GenerateModalProps {
@@ -226,27 +225,10 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
         const reason =
           resData?.error ||
           resData?.details ||
-          `HTTP ${response.status}${rawText ? "" : " (Respons kosong)"}`;
-        const fallback = generateSmartSpoDocument({
-          judul: judul.trim(),
-          institusi: payloadInstitusi,
-          noDokumen: payloadNoDokumen || undefined,
-          noRevisi: payloadNoRevisi,
-          tanggalTerbit: payloadTanggalTerbit,
-          kepalaRumahSakit: payloadKepalaRS,
-          drafterNama: payloadDrafterNama,
-          drafterJabatan: payloadDrafterJabatan,
-          creatorNama: payloadCreatorNama,
-          creatorJabatan: payloadCreatorJabatan,
-          reviewerNama: payloadReviewerNama,
-          reviewerJabatan: payloadReviewerJabatan,
-          konteksTambahan: konteksTambahan.trim(),
-        });
-        onGenerated(
-          fallback,
-          `Dokumen & diagram alur disusun menggunakan Generator Lokal (${reason}).`,
-        );
-        onClose();
+          `Gagal menghubungi server AI (HTTP ${response.status}${rawText ? "" : " - Respons kosong"}).`;
+        setShowValidation(false);
+        setErrorMsg(reason);
+        bodyRef.current?.scrollTo({ top: 0, behavior: "smooth" });
         return;
       }
 
@@ -264,39 +246,15 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
     } catch (err: any) {
       clearInterval(stepInterval);
       clearTimeout(timeoutId);
-      console.warn(
-        "API request error, falling back to smart hospital engine:",
-        err,
-      );
+      console.warn("API request error (Gemini/OpenRouter):", err);
       const isTimeout = err?.name === "AbortError";
-      try {
-        const fallback = generateSmartSpoDocument({
-          judul: judul.trim(),
-          institusi: payloadInstitusi,
-          noDokumen: payloadNoDokumen || undefined,
-          noRevisi: payloadNoRevisi,
-          tanggalTerbit: payloadTanggalTerbit,
-          kepalaRumahSakit: payloadKepalaRS,
-          drafterNama: payloadDrafterNama,
-          drafterJabatan: payloadDrafterJabatan,
-          creatorNama: payloadCreatorNama,
-          creatorJabatan: payloadCreatorJabatan,
-          reviewerNama: payloadReviewerNama,
-          reviewerJabatan: payloadReviewerJabatan,
-          konteksTambahan: konteksTambahan.trim(),
-        });
-        onGenerated(
-          fallback,
-          isTimeout
-            ? "Waktu tunggu server habis; dokumen & diagram alur otomatis disusun menggunakan Generator Lokal."
-            : "Koneksi API terganggu; dokumen & diagram alur otomatis disusun menggunakan Generator Lokal.",
-        );
-        onClose();
-      } catch (_innerErr: any) {
-        setErrorMsg(
-          "Gagal menyusun dokumen. Silakan periksa isian formulir dan coba kembali.",
-        );
-      }
+      setShowValidation(false);
+      setErrorMsg(
+        isTimeout
+          ? "Waktu tunggu server AI (Gemini & OpenRouter) habis. Silakan coba kembali."
+          : "Koneksi ke server AI (Gemini & OpenRouter) terganggu. Silakan periksa jaringan atau konfigurasi API Key lalu coba kembali.",
+      );
+      bodyRef.current?.scrollTo({ top: 0, behavior: "smooth" });
     } finally {
       setLoadingState(false);
     }
@@ -342,7 +300,9 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
                 <AlertCircle className="w-5 h-5 text-rose-600 shrink-0 mt-0.5" />
                 <div className="flex-1">
                   <div className="font-bold text-rose-900 mb-0.5">
-                    Kelengkapan Formulir Wajib Diisi:
+                    {showValidation
+                      ? "Kelengkapan Formulir Wajib Diisi:"
+                      : "Gagal Menyusun SPO dengan AI:"}
                   </div>
                   <div className="text-xs leading-relaxed text-rose-700">
                     {errorMsg}
