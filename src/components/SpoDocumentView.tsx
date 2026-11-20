@@ -3,6 +3,7 @@ import { SpoDocument } from "../types/spo";
 import { Edit2 } from "lucide-react";
 import { SpoFlowchartDocumentEmbed } from "./SpoFlowchartDocumentEmbed";
 import { formatSpoVersionLabel } from "../utils/spoFormatHelper";
+import { getInstitutionBranding } from "../utils/institutionBranding";
 
 interface SpoDocumentViewProps {
   spo: SpoDocument;
@@ -17,6 +18,8 @@ export const SpoDocumentView: React.FC<SpoDocumentViewProps> = ({
   onOpenGenerateModal,
   onSwitchToFlowchart,
 }) => {
+  const institutionBranding = getInstitutionBranding(spo.metadata?.institusi);
+
   return (
     <div className="w-full flex flex-col items-center py-6 px-2 sm:px-4">
       {/* A4 Paper Container */}
@@ -50,8 +53,8 @@ export const SpoDocumentView: React.FC<SpoDocumentViewProps> = ({
                 >
                   <div className="flex flex-col items-center justify-center">
                     <img
-                      src="/assets/aistudio/rs-semen-gresik_d7d14617.png"
-                      alt="Logo Rumah Sakit Semen Gresik"
+                      src={institutionBranding.logoPath}
+                      alt={institutionBranding.alt}
                       className="w-24 h-24 sm:w-28 sm:h-28 object-contain mx-auto"
                     />
                   </div>
@@ -146,13 +149,13 @@ export const SpoDocumentView: React.FC<SpoDocumentViewProps> = ({
                       </div>
                     </div>
                     <div className="w-full pt-10 sm:pt-12">
-                      <span className="font-bold underline text-xs sm:text-sm inline-block">
-                        {spo.metadata.kepalaRumahSakit || (
-                          <span className="text-slate-400 italic font-normal">
-                            dr. Tolib Bahasuan
-                          </span>
-                        )}
-                      </span>
+                      {spo.metadata.kepalaRumahSakit?.trim() ? (
+                        <span className="font-bold underline text-xs sm:text-sm inline-block">
+                          {spo.metadata.kepalaRumahSakit}
+                        </span>
+                      ) : (
+                        <span className="inline-block w-44 border-b border-slate-400" />
+                      )}
                     </div>
                   </div>
                 </td>
@@ -670,9 +673,13 @@ export const SpoDocumentView: React.FC<SpoDocumentViewProps> = ({
                 {/* Drafter */}
                 <td className="border-r-2 border-black p-4 text-center align-bottom h-40">
                   <div className="pt-16 pb-1">
-                    <div className="font-bold underline text-xs sm:text-sm text-slate-900 leading-snug">
-                      {spo.metadata.drafter.nama || "-"}
-                    </div>
+                    {spo.metadata.drafter.nama?.trim() ? (
+                      <div className="font-bold underline text-xs sm:text-sm text-slate-900 leading-snug">
+                        {spo.metadata.drafter.nama}
+                      </div>
+                    ) : (
+                      <div className="border-b border-slate-400 w-36 mx-auto mb-1" />
+                    )}
                     <div className="text-slate-700 text-[11px] mt-1 font-medium leading-tight">
                       ({spo.metadata.drafter.jabatan || "Drafter"})
                     </div>
@@ -682,9 +689,13 @@ export const SpoDocumentView: React.FC<SpoDocumentViewProps> = ({
                 {/* Creator */}
                 <td className="border-r-2 border-black p-4 text-center align-bottom h-40">
                   <div className="pt-16 pb-1">
-                    <div className="font-bold underline text-xs sm:text-sm text-slate-900 leading-snug">
-                      {spo.metadata.creator.nama || "-"}
-                    </div>
+                    {spo.metadata.creator.nama?.trim() ? (
+                      <div className="font-bold underline text-xs sm:text-sm text-slate-900 leading-snug">
+                        {spo.metadata.creator.nama}
+                      </div>
+                    ) : (
+                      <div className="border-b border-slate-400 w-36 mx-auto mb-1" />
+                    )}
                     <div className="text-slate-700 text-[11px] mt-1 font-medium leading-tight">
                       ({spo.metadata.creator.jabatan || "Creator"})
                     </div>
@@ -694,9 +705,13 @@ export const SpoDocumentView: React.FC<SpoDocumentViewProps> = ({
                 {/* Reviewer */}
                 <td className="p-4 text-center align-bottom h-40">
                   <div className="pt-16 pb-1">
-                    <div className="font-bold underline text-xs sm:text-sm text-slate-900 leading-snug">
-                      {spo.metadata.reviewer.nama || "-"}
-                    </div>
+                    {spo.metadata.reviewer.nama?.trim() ? (
+                      <div className="font-bold underline text-xs sm:text-sm text-slate-900 leading-snug">
+                        {spo.metadata.reviewer.nama}
+                      </div>
+                    ) : (
+                      <div className="border-b border-slate-400 w-36 mx-auto mb-1" />
+                    )}
                     <div className="text-slate-700 text-[11px] mt-1 font-medium leading-tight">
                       ({spo.metadata.reviewer.jabatan || "Reviewer"})
                     </div>

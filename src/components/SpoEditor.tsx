@@ -18,6 +18,10 @@ import {
 } from "lucide-react";
 import { formatSpoVersionLabel } from "../utils/spoFormatHelper";
 import { buildFlowchartModelFromSpo } from "../utils/flowchartHelper";
+import {
+  INSTITUTION_OPTIONS,
+  getInstitutionBranding,
+} from "../utils/institutionBranding";
 
 export type EditorTab =
   | "metadata"
@@ -477,27 +481,73 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
               </span>
             </div>
 
-            <div className="flex items-center space-x-3 p-3 bg-emerald-50/60 rounded-xl border border-emerald-200/80 mb-5">
-              <div className="w-14 h-14 bg-white rounded-lg border border-emerald-300 p-1 flex items-center justify-center shrink-0">
-                <img
-                  src="/assets/aistudio/rs-semen-gresik_d7d14617.png"
-                  alt="Logo RS Semen Gresik"
-                  className="w-full h-full object-contain"
-                />
-              </div>
-              <div className="text-xs">
-                <div className="font-bold text-emerald-950 flex items-center space-x-1.5">
-                  <span>Logo Resmi Rumah Sakit Semen Gresik</span>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-600 text-white font-semibold">
-                    Aktif
-                  </span>
+            {(() => {
+              const activeBranding = getInstitutionBranding(
+                spo.metadata.institusi,
+              );
+              return (
+                <div className="p-3.5 bg-emerald-50/60 rounded-xl border border-emerald-200/80 mb-5 space-y-3">
+                  <div className="flex items-center space-x-3">
+                    <div className="w-14 h-14 bg-white rounded-lg border border-emerald-300 p-1 flex items-center justify-center shrink-0">
+                      <img
+                        src={activeBranding.logoPath}
+                        alt={activeBranding.alt}
+                        className="w-full h-full object-contain"
+                      />
+                    </div>
+                    <div className="text-xs min-w-0">
+                      <div className="font-bold text-emerald-950 flex flex-wrap items-center gap-1.5">
+                        <span>Logo Kop Aktif: {activeBranding.label}</span>
+                        <span className="px-2 py-0.5 rounded-full text-[10px] bg-emerald-600 text-white font-semibold">
+                          Otomatis
+                        </span>
+                      </div>
+                      <div className="text-emerald-800 text-[11px] mt-0.5">
+                        Logo Kop pada Preview Dokumen, Diagram Alur, dan Ekspor
+                        Word (.docx) otomatis mengikuti pilihan institusi di
+                        bawah.
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    {INSTITUTION_OPTIONS.map((opt) => {
+                      const isSelected = activeBranding.id === opt.id;
+                      return (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() =>
+                            updateMetadata("institusi", opt.fullName)
+                          }
+                          className={`flex items-center space-x-2.5 p-2 rounded-lg border text-left transition-all cursor-pointer ${
+                            isSelected
+                              ? "bg-white border-emerald-600 ring-1 ring-emerald-600 shadow-2xs"
+                              : "bg-white/70 border-slate-200 hover:border-slate-300"
+                          }`}
+                        >
+                          <div className="w-9 h-9 rounded-md bg-white border border-slate-200 p-0.5 flex items-center justify-center shrink-0">
+                            <img
+                              src={opt.logoPath}
+                              alt={opt.alt}
+                              className="w-full h-full object-contain"
+                            />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-xs font-bold text-slate-900 truncate">
+                              {opt.label}
+                            </div>
+                            <div className="text-[10px] text-slate-500 truncate">
+                              {opt.fullName}
+                            </div>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-                <div className="text-emerald-800 text-[11px] mt-0.5">
-                  Logo resmi otomatis terpasang pada Kop Dokumen (kolom kiri
-                  baris 1 & 2) di preview dokumen & ekspor Word.
-                </div>
-              </div>
-            </div>
+              );
+            })()}
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
@@ -522,7 +572,7 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
                   type="text"
                   value={spo.metadata.institusi}
                   onChange={(e) => updateMetadata("institusi", e.target.value)}
-                  placeholder="RUMAH SAKIT SEMEN GRESIK / PT CIPTA NIRMALA"
+                  placeholder="RUMAH SAKIT SEMEN GRESIK"
                   className="w-full text-xs font-semibold rounded-lg border-slate-300 shadow-xs focus:border-emerald-500 focus:ring-emerald-500 p-2.5 border"
                 />
               </div>

@@ -2,6 +2,10 @@ import React, { useState, useRef } from "react";
 import { X, FileText, UserCheck, AlertCircle } from "lucide-react";
 import { SpoDocument } from "../types/spo";
 import { buildFlowchartModelFromSpo } from "../utils/flowchartHelper";
+import {
+  INSTITUTION_OPTIONS,
+  getInstitutionBranding,
+} from "../utils/institutionBranding";
 
 interface GenerateModalProps {
   isOpen: boolean;
@@ -19,9 +23,9 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
   onGeneratingChange,
 }) => {
   const [judul, setJudul] = useState("");
-  const institusi =
-    currentSpo?.metadata?.institusi?.trim() ||
-    "RUMAH SAKIT SEMEN GRESIK / PT CIPTA NIRMALA";
+  const [institusi, setInstitusi] = useState<string>(
+    () => getInstitutionBranding(currentSpo?.metadata?.institusi).fullName,
+  );
   const [noDokumen, setNoDokumen] = useState("");
   const [noRevisi, setNoRevisi] = useState("0");
   const [tanggalTerbit, setTanggalTerbit] = useState("");
@@ -47,12 +51,17 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
 
   React.useEffect(() => {
     if (isOpen) {
+      setInstitusi(
+        getInstitutionBranding(currentSpo?.metadata?.institusi).fullName,
+      );
       setErrorMsg(null);
       setShowValidation(false);
       setIsLoading(false);
       setCurrentStep(0);
     }
-  }, [isOpen]);
+  }, [isOpen, currentSpo?.metadata?.institusi]);
+
+  const activeBranding = getInstitutionBranding(institusi);
 
   const setFieldAuto = (
     key: string,
@@ -268,8 +277,8 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
           <div className="flex items-center space-x-3">
             <div className="h-10 rounded-xl bg-white border border-slate-200 flex items-center justify-center px-2 py-1 shadow-xs shrink-0">
               <img
-                src="/assets/aistudio/rs-semen-gresik_d7d14617.png"
-                alt="Logo Rumah Sakit Semen Gresik"
+                src={activeBranding.logoPath}
+                alt={activeBranding.alt}
                 className="h-8 w-auto object-contain"
               />
             </div>
@@ -277,7 +286,7 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
               <h3 className="font-bold text-slate-900 text-base">
                 Formulir Generator Dokumen SPO
               </h3>
-              <p className="text-xs text-slate-500">Rumah Sakit Semen Gresik</p>
+              <p className="text-xs text-slate-500">{activeBranding.label}</p>
             </div>
           </div>
           <button
@@ -317,6 +326,46 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
             <div className="flex items-center space-x-2 font-bold text-slate-900 border-b border-slate-200 pb-2">
               <FileText className="w-4 h-4 text-emerald-600" />
               <span>Bagian Kop Dokumen (Wajib Ditetapkan)</span>
+            </div>
+
+            <div>
+              <label className="block font-bold text-slate-800 mb-1.5">
+                Pilih Institusi / Korporasi (Logo Kop Otomatis){" "}
+                <span className="text-rose-500">*</span>
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                {INSTITUTION_OPTIONS.map((opt) => {
+                  const isSelected = activeBranding.id === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setInstitusi(opt.fullName)}
+                      className={`flex items-center space-x-3 p-2.5 rounded-xl border text-left transition-all cursor-pointer ${
+                        isSelected
+                          ? "bg-emerald-50 border-emerald-500 ring-1 ring-emerald-500 shadow-2xs"
+                          : "bg-white border-slate-300 hover:border-slate-400"
+                      }`}
+                    >
+                      <div className="w-10 h-10 rounded-lg bg-white border border-slate-200 p-1 flex items-center justify-center shrink-0">
+                        <img
+                          src={opt.logoPath}
+                          alt={opt.alt}
+                          className="w-full h-full object-contain"
+                        />
+                      </div>
+                      <div className="min-w-0">
+                        <div className="font-bold text-slate-900 text-xs truncate">
+                          {opt.label}
+                        </div>
+                        <div className="text-[10px] text-slate-500 truncate">
+                          {opt.fullName}
+                        </div>
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
 
             <div>
