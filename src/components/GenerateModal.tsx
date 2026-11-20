@@ -270,7 +270,7 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
 
             <div>
               <label className="block font-bold text-slate-800 mb-1.5">
-                Pilih Institusi / Korporasi (Logo Kop Otomatis){" "}
+                Pilih Institusi / Korporasi{" "}
                 <span className="text-rose-500">*</span>
               </label>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
