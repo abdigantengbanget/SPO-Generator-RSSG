@@ -56,17 +56,17 @@ export interface FormulirPendukungSection {
 }
 
 export type FlowNodeType =
-  | 'terminator'
-  | 'process'
-  | 'decision'
-  | 'document'
-  | 'data'
-  | 'connector'
-  | 'start'
-  | 'end'
-  | 'gateway'
-  | 'datastore'
-  | 'subprocess';
+  | "terminator"
+  | "process"
+  | "decision"
+  | "document"
+  | "data"
+  | "connector"
+  | "start"
+  | "end"
+  | "gateway"
+  | "datastore"
+  | "subprocess";
 
 export type FlowLaneKey = string;
 
@@ -88,9 +88,9 @@ export interface FlowConnection {
   targetId: string;
   label?: string; // e.g. 'Ya', 'Tidak', 'Kirim', 'Lanjut'
   waypoints?: FlowPoint[]; // custom bendpoints for dragging arrows
-  sourceHandle?: 'top' | 'bottom' | 'left' | 'right';
-  targetHandle?: 'top' | 'bottom' | 'left' | 'right';
-  routingType?: 'orthogonal' | 'waypoints' | 'direct' | 'curved';
+  sourceHandle?: "top" | "bottom" | "left" | "right";
+  targetHandle?: "top" | "bottom" | "left" | "right";
+  routingType?: "orthogonal" | "waypoints" | "direct" | "curved";
   segmentOffset?: number; // pergeseran posisi garis panah tengah (Y atau X)
   dashed?: boolean;
   color?: string;
@@ -135,7 +135,7 @@ export interface FlowchartModel {
 export interface AlurNode {
   id: string;
   noProsesTerkait?: string;
-  tipe: 'start' | 'process' | 'decision' | 'end';
+  tipe: "start" | "process" | "decision" | "end";
   label: string;
   subText?: string;
   kondisiYa?: string;
@@ -148,6 +148,7 @@ export interface SpoMetadata {
   noRevisi: string;
   tanggalTerbit: string;
   kepalaRumahSakit: string;
+  kepalaRumahSakitJabatan?: string;
   drafter: {
     nama: string;
     jabatan: string;

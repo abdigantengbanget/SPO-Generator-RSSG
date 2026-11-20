@@ -97,7 +97,9 @@ export const SpoDocumentView: React.FC<SpoDocumentViewProps> = ({
                     No. Revisi
                   </div>
                   <div className="font-medium text-xs sm:text-sm mt-0.5">
-                    {spo.metadata.noRevisi || "0"}
+                    {spo.metadata.noRevisi || (
+                      <span className="text-slate-400 italic">[Contoh: 0]</span>
+                    )}
                   </div>
                 </td>
                 {/* Kolom 4 */}
@@ -145,7 +147,8 @@ export const SpoDocumentView: React.FC<SpoDocumentViewProps> = ({
                         Ditetapkan,
                       </div>
                       <div className="text-[11px] text-slate-800 font-medium">
-                        Kepala Rumah Sakit
+                        {spo.metadata.kepalaRumahSakitJabatan?.trim() ||
+                          "Kepala Rumah Sakit"}
                       </div>
                     </div>
                     <div className="w-full pt-10 sm:pt-12">

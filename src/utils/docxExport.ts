@@ -468,10 +468,11 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
                 alignment: AlignmentType.CENTER,
                 spacing: { after: 720, line: 240 },
                 children: [
-                  makeRun("Kepala Rumah Sakit", {
-                    size: 17,
-                    color: COLOR_SLATE_800,
-                  }),
+                  makeRun(
+                    spo.metadata.kepalaRumahSakitJabatan?.trim() ||
+                      "Kepala Rumah Sakit",
+                    { size: 17, color: COLOR_SLATE_800 },
+                  ),
                 ],
               }),
               new Paragraph({

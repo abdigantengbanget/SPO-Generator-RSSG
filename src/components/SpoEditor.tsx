@@ -579,33 +579,53 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  No. Dokumen
+                  No. Dokumen <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"
                   value={spo.metadata.noDokumen}
                   onChange={(e) => updateMetadata("noDokumen", e.target.value)}
-                  placeholder="contoh: QAP/102341/770"
-                  className="w-full text-xs font-mono rounded-lg border-slate-300 shadow-xs focus:border-emerald-500 focus:ring-emerald-500 p-2.5 border"
+                  required
+                  placeholder="Wajib diisi — contoh: QAP/102341/770"
+                  className={`w-full text-xs font-mono rounded-lg shadow-xs focus:border-emerald-500 focus:ring-emerald-500 p-2.5 border ${
+                    !spo.metadata.noDokumen?.trim()
+                      ? "border-rose-300 bg-rose-50/30"
+                      : "border-slate-300 bg-white"
+                  }`}
                 />
+                {!spo.metadata.noDokumen?.trim() && (
+                  <p className="text-[11px] text-rose-600 mt-1">
+                    No. Dokumen wajib diisi dan tidak boleh dikosongkan.
+                  </p>
+                )}
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  No. Revisi
+                  No. Revisi <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"
                   value={spo.metadata.noRevisi}
                   onChange={(e) => updateMetadata("noRevisi", e.target.value)}
-                  placeholder="0"
-                  className="w-full text-xs rounded-lg border-slate-300 shadow-xs focus:border-emerald-500 focus:ring-emerald-500 p-2.5 border"
+                  required
+                  placeholder="Wajib diisi — contoh: 0"
+                  className={`w-full text-xs rounded-lg shadow-xs focus:border-emerald-500 focus:ring-emerald-500 p-2.5 border ${
+                    !spo.metadata.noRevisi?.trim()
+                      ? "border-rose-300 bg-rose-50/30"
+                      : "border-slate-300 bg-white"
+                  }`}
                 />
+                {!spo.metadata.noRevisi?.trim() && (
+                  <p className="text-[11px] text-rose-600 mt-1">
+                    No. Revisi wajib diisi dan tidak boleh dikosongkan.
+                  </p>
+                )}
               </div>
 
               <div>
                 <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Tanggal Terbit
+                  Tanggal Terbit <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"
@@ -613,36 +633,82 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
                   onChange={(e) =>
                     updateMetadata("tanggalTerbit", e.target.value)
                   }
-                  placeholder="contoh: 23 Oktober 2026"
-                  className="w-full text-xs rounded-lg border-slate-300 shadow-xs focus:border-emerald-500 focus:ring-emerald-500 p-2.5 border"
-                />
-              </div>
-
-              <div className="md:col-span-2">
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  Nama Kepala Rumah Sakit (Ditetapkan Oleh){" "}
-                  <span className="text-rose-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={spo.metadata.kepalaRumahSakit}
-                  onChange={(e) =>
-                    updateMetadata("kepalaRumahSakit", e.target.value)
-                  }
                   required
-                  placeholder="Wajib diisi — contoh: dr. Tolib Bahasuan"
-                  className={`w-full text-xs font-semibold rounded-lg shadow-xs focus:border-emerald-500 focus:ring-emerald-500 p-2.5 border ${
-                    !spo.metadata.kepalaRumahSakit?.trim()
+                  placeholder="Wajib diisi — contoh: 23 Oktober 2026"
+                  className={`w-full text-xs rounded-lg shadow-xs focus:border-emerald-500 focus:ring-emerald-500 p-2.5 border ${
+                    !spo.metadata.tanggalTerbit?.trim()
                       ? "border-rose-300 bg-rose-50/30"
                       : "border-slate-300 bg-white"
                   }`}
                 />
-                {!spo.metadata.kepalaRumahSakit?.trim() && (
+                {!spo.metadata.tanggalTerbit?.trim() && (
                   <p className="text-[11px] text-rose-600 mt-1">
-                    Nama Kepala Rumah Sakit wajib diisi dan tidak boleh
-                    dikosongkan.
+                    Tanggal Terbit wajib diisi dan tidak boleh dikosongkan.
                   </p>
                 )}
+              </div>
+
+              <div className="md:col-span-2 p-4 rounded-xl bg-slate-50 border border-slate-200">
+                <div className="text-xs font-bold uppercase tracking-wider text-emerald-800 mb-3 flex items-center justify-between">
+                  <span>Ditetapkan Oleh (Kop Dokumen)</span>
+                  <span className="text-[10px] text-rose-600 font-semibold">
+                    Wajib Diisi
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                      Nama Lengkap &amp; Gelar{" "}
+                      <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={spo.metadata.kepalaRumahSakit}
+                      onChange={(e) =>
+                        updateMetadata("kepalaRumahSakit", e.target.value)
+                      }
+                      required
+                      placeholder="Wajib diisi — contoh: dr. Tolib Bahasuan"
+                      className={`w-full text-xs font-semibold rounded-lg shadow-xs focus:border-emerald-500 focus:ring-emerald-500 p-2 border ${
+                        !spo.metadata.kepalaRumahSakit?.trim()
+                          ? "border-rose-300 bg-rose-50/30"
+                          : "border-slate-300 bg-white"
+                      }`}
+                    />
+                    {!spo.metadata.kepalaRumahSakit?.trim() && (
+                      <p className="text-[11px] text-rose-600 mt-1">
+                        Nama &amp; Gelar penetap wajib diisi.
+                      </p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                      Jabatan <span className="text-rose-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={spo.metadata.kepalaRumahSakitJabatan || ""}
+                      onChange={(e) =>
+                        updateMetadata(
+                          "kepalaRumahSakitJabatan",
+                          e.target.value,
+                        )
+                      }
+                      required
+                      placeholder="Wajib diisi — contoh: Kepala Rumah Sakit"
+                      className={`w-full text-xs font-semibold rounded-lg shadow-xs focus:border-emerald-500 focus:ring-emerald-500 p-2 border ${
+                        !spo.metadata.kepalaRumahSakitJabatan?.trim()
+                          ? "border-rose-300 bg-rose-50/30"
+                          : "border-slate-300 bg-white"
+                      }`}
+                    />
+                    {!spo.metadata.kepalaRumahSakitJabatan?.trim() && (
+                      <p className="text-[11px] text-rose-600 mt-1">
+                        Jabatan penetap wajib diisi.
+                      </p>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
           </div>

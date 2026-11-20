@@ -5,9 +5,10 @@ export const BLANK_SPO_TEMPLATE: SpoDocument = {
   metadata: {
     institusi: "RUMAH SAKIT SEMEN GRESIK / PT CIPTA NIRMALA",
     noDokumen: "",
-    noRevisi: "0",
+    noRevisi: "",
     tanggalTerbit: "",
     kepalaRumahSakit: "",
+    kepalaRumahSakitJabatan: "",
     drafter: {
       nama: "",
       jabatan: "",
@@ -50,6 +51,7 @@ export const TEMPLATE_RS_SEMEN_GRESIK: SpoDocument = {
     noRevisi: "0",
     tanggalTerbit: "23 Oktober 2026",
     kepalaRumahSakit: "dr. Tolib Bahasuan",
+    kepalaRumahSakitJabatan: "Kepala Rumah Sakit",
     drafter: {
       nama: "Hana Thriesminarsih, S.Kes",
       jabatan: "Karu Rehabilitasi Medik",
@@ -488,6 +490,7 @@ export const PRESET_LIST = [
         noRevisi: "0",
         tanggalTerbit: "01 November 2026",
         kepalaRumahSakit: "dr. Tolib Bahasuan",
+        kepalaRumahSakitJabatan: "Kepala Rumah Sakit",
         drafter: {
           nama: "Ns. Hendra Prasetyo, S.Kep",
           jabatan: "Kepala Ruangan IGD",
@@ -674,6 +677,7 @@ export const PRESET_LIST = [
         noRevisi: "1",
         tanggalTerbit: "15 September 2026",
         kepalaRumahSakit: "dr. Tolib Bahasuan",
+        kepalaRumahSakitJabatan: "Kepala Rumah Sakit",
         drafter: {
           nama: "Apt. Dwi Lestari, S.Farm",
           jabatan: "Koordinator Farmasi Klinis",

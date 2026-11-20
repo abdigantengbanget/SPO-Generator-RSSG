@@ -49,7 +49,11 @@ export default function App() {
   const handleExportWord = async () => {
     const meta = spo.metadata;
     const isApprovalIncomplete =
+      !meta.noDokumen?.trim() ||
+      !meta.noRevisi?.trim() ||
+      !meta.tanggalTerbit?.trim() ||
       !meta.kepalaRumahSakit?.trim() ||
+      !meta.kepalaRumahSakitJabatan?.trim() ||
       !meta.drafter?.nama?.trim() ||
       !meta.drafter?.jabatan?.trim() ||
       !meta.creator?.nama?.trim() ||
@@ -61,7 +65,7 @@ export default function App() {
       setEditorTab("metadata");
       setViewMode("edit");
       showToast(
-        "Nama Kepala Rumah Sakit serta Lembar Pengesahan (Drafter, Creator, Reviewer) wajib diisi terlebih dahulu sebelum ekspor Word.",
+        "No. Dokumen, No. Revisi, Tanggal Terbit, Penetap (Ditetapkan Oleh), serta Lembar Pengesahan wajib diisi lengkap sebelum ekspor Word.",
         "error",
       );
       return;

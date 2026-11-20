@@ -27,9 +27,10 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
     () => getInstitutionBranding(currentSpo?.metadata?.institusi).fullName,
   );
   const [noDokumen, setNoDokumen] = useState("");
-  const [noRevisi, setNoRevisi] = useState("0");
+  const [noRevisi, setNoRevisi] = useState("");
   const [tanggalTerbit, setTanggalTerbit] = useState("");
   const [kepalaRumahSakit, setKepalaRumahSakit] = useState("");
+  const [kepalaRumahSakitJabatan, setKepalaRumahSakitJabatan] = useState("");
 
   // Lembar Pengesahan
   const [drafterNama, setDrafterNama] = useState("");
@@ -45,8 +46,6 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
   const [showValidation, setShowValidation] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
 
-  // Track which fields were manually edited so auto-fill does not overwrite user input
-  const manualEditsRef = useRef<Record<string, boolean>>({});
   const bodyRef = useRef<HTMLDivElement | null>(null);
 
   React.useEffect(() => {
@@ -63,69 +62,8 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
 
   const activeBranding = getInstitutionBranding(institusi);
 
-  const setFieldAuto = (
-    key: string,
-    setter: React.Dispatch<React.SetStateAction<string>>,
-    val: string,
-  ) => {
-    if (!manualEditsRef.current[key]) {
-      setter(val);
-    }
-  };
-
   const handleJudulChange = (newJudul: string) => {
     setJudul(newJudul);
-    const lower = newJudul.toLowerCase();
-    const year = new Date().getFullYear();
-
-    if (
-      lower.includes("igd") ||
-      lower.includes("triase") ||
-      lower.includes("darurat") ||
-      lower.includes("esi")
-    ) {
-      setFieldAuto("noDokumen", setNoDokumen, `MED/IGD/${year}/012`);
-    } else if (
-      lower.includes("farmasi") ||
-      lower.includes("obat") ||
-      lower.includes("high alert") ||
-      lower.includes("lasa")
-    ) {
-      setFieldAuto("noDokumen", setNoDokumen, `FAR/SPO/${year}/118`);
-    } else if (
-      lower.includes("code blue") ||
-      lower.includes("henti jantung") ||
-      lower.includes("resusitasi") ||
-      lower.includes("rjp")
-    ) {
-      setFieldAuto("noDokumen", setNoDokumen, `MED/CBL/${year}/005`);
-    } else if (
-      lower.includes("admisi") ||
-      lower.includes("rawat inap") ||
-      lower.includes("sep") ||
-      lower.includes("tpprj")
-    ) {
-      setFieldAuto("noDokumen", setNoDokumen, `ADM/SPO/${year}/089`);
-    } else if (
-      lower.includes("bedah") ||
-      lower.includes("operasi") ||
-      lower.includes("ibs")
-    ) {
-      setFieldAuto("noDokumen", setNoDokumen, `BDH/SPO/${year}/045`);
-    } else if (
-      lower.includes("ppi") ||
-      lower.includes("infeksi") ||
-      lower.includes("sterilisasi") ||
-      lower.includes("cuci tangan")
-    ) {
-      setFieldAuto("noDokumen", setNoDokumen, `PPI/SPO/${year}/021`);
-    } else if (
-      lower.includes("rehabilitasi") ||
-      lower.includes("fisioterapi") ||
-      lower.includes("tlb")
-    ) {
-      setFieldAuto("noDokumen", setNoDokumen, `QAP/${year}/770`);
-    }
   };
 
   const stepsList = [
@@ -149,7 +87,13 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
   const handleGenerate = async () => {
     const missingFields: string[] = [];
     if (!judul.trim()) missingFields.push("Judul SPO");
-    if (!kepalaRumahSakit.trim()) missingFields.push("Nama Kepala Rumah Sakit");
+    if (!noDokumen.trim()) missingFields.push("No. Dokumen");
+    if (!noRevisi.trim()) missingFields.push("No. Revisi");
+    if (!tanggalTerbit.trim()) missingFields.push("Tanggal Terbit");
+    if (!kepalaRumahSakit.trim())
+      missingFields.push("Nama & Gelar Penetap (Ditetapkan Oleh)");
+    if (!kepalaRumahSakitJabatan.trim())
+      missingFields.push("Jabatan Penetap (Ditetapkan Oleh)");
     if (!drafterNama.trim()) missingFields.push("Nama & Gelar Drafter");
     if (!drafterJabatan.trim()) missingFields.push("Jabatan Drafter");
     if (!creatorNama.trim()) missingFields.push("Nama & Gelar Creator");
@@ -173,15 +117,10 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
 
     const payloadInstitusi = institusi;
     const payloadNoDokumen = noDokumen.trim();
-    const payloadNoRevisi = noRevisi.trim() || "0";
-    const payloadTanggalTerbit =
-      tanggalTerbit.trim() ||
-      new Date().toLocaleDateString("id-ID", {
-        day: "numeric",
-        month: "long",
-        year: "numeric",
-      });
+    const payloadNoRevisi = noRevisi.trim();
+    const payloadTanggalTerbit = tanggalTerbit.trim();
     const payloadKepalaRS = kepalaRumahSakit.trim();
+    const payloadKepalaRSJabatan = kepalaRumahSakitJabatan.trim();
     const payloadDrafterNama = drafterNama.trim();
     const payloadDrafterJabatan = drafterJabatan.trim();
     const payloadCreatorNama = creatorNama.trim();
@@ -208,6 +147,7 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
           noRevisi: payloadNoRevisi,
           tanggalTerbit: payloadTanggalTerbit,
           kepalaRumahSakit: payloadKepalaRS,
+          kepalaRumahSakitJabatan: payloadKepalaRSJabatan,
           drafterNama: payloadDrafterNama,
           drafterJabatan: payloadDrafterJabatan,
           creatorNama: payloadCreatorNama,
@@ -389,63 +329,106 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">
-                  No. Dokumen
+                  No. Dokumen <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"
                   value={noDokumen}
-                  onChange={(e) => {
-                    manualEditsRef.current.noDokumen = true;
-                    setNoDokumen(e.target.value);
-                  }}
-                  placeholder="Contoh: MED/IGD/2026/012 (Otomatis jika kosong)"
-                  className="w-full rounded-lg border-slate-300 bg-white p-2 border font-mono font-medium"
+                  onChange={(e) => setNoDokumen(e.target.value)}
+                  required
+                  placeholder="Wajib diisi — contoh: MED/IGD/2026/012"
+                  className={`w-full rounded-lg p-2 border font-mono font-medium focus:ring-emerald-500 focus:border-emerald-500 ${
+                    isMissingField(noDokumen)
+                      ? "border-rose-400 bg-rose-50/40"
+                      : "border-slate-300 bg-white"
+                  }`}
                 />
               </div>
 
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">
-                  No. Revisi
+                  No. Revisi <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"
                   value={noRevisi}
                   onChange={(e) => setNoRevisi(e.target.value)}
-                  placeholder="Contoh: 0"
-                  className="w-full rounded-lg border-slate-300 bg-white p-2 border font-medium"
+                  required
+                  placeholder="Wajib diisi — contoh: 0"
+                  className={`w-full rounded-lg p-2 border font-medium focus:ring-emerald-500 focus:border-emerald-500 ${
+                    isMissingField(noRevisi)
+                      ? "border-rose-400 bg-rose-50/40"
+                      : "border-slate-300 bg-white"
+                  }`}
                 />
               </div>
 
               <div>
                 <label className="block font-semibold text-slate-700 mb-1">
-                  Tanggal Terbit
+                  Tanggal Terbit <span className="text-rose-500">*</span>
                 </label>
                 <input
                   type="text"
                   value={tanggalTerbit}
                   onChange={(e) => setTanggalTerbit(e.target.value)}
-                  placeholder="Contoh: 04 November 2026 (Otomatis jika kosong)"
-                  className="w-full rounded-lg border-slate-300 bg-white p-2 border font-medium"
+                  required
+                  placeholder="Wajib diisi — contoh: 04 November 2026"
+                  className={`w-full rounded-lg p-2 border font-medium focus:ring-emerald-500 focus:border-emerald-500 ${
+                    isMissingField(tanggalTerbit)
+                      ? "border-rose-400 bg-rose-50/40"
+                      : "border-slate-300 bg-white"
+                  }`}
                 />
               </div>
             </div>
 
-            <div>
-              <label className="block font-semibold text-slate-700 mb-1">
-                Nama Kepala Rumah Sakit <span className="text-rose-500">*</span>
-              </label>
-              <input
-                type="text"
-                value={kepalaRumahSakit}
-                onChange={(e) => setKepalaRumahSakit(e.target.value)}
-                required
-                placeholder="Wajib diisi — contoh: dr. Tolib Bahasuan"
-                className={`w-full rounded-lg p-2 border font-semibold text-slate-900 focus:ring-emerald-500 focus:border-emerald-500 ${
-                  isMissingField(kepalaRumahSakit)
-                    ? "border-rose-400 bg-rose-50/40"
-                    : "border-slate-300 bg-white"
-                }`}
-              />
+            {/* Sub-card: Ditetapkan Oleh */}
+            <div className="p-3 rounded-lg bg-white border border-slate-200 space-y-2.5">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-emerald-800 block text-[11px] uppercase tracking-wider">
+                  Ditetapkan Oleh (Kop Dokumen){" "}
+                  <span className="text-rose-500">*</span>
+                </span>
+                <span className="text-[10px] font-medium text-rose-600">
+                  Wajib diisi lengkap
+                </span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-[10px] font-semibold text-slate-600 mb-0.5">
+                    Nama &amp; Gelar <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={kepalaRumahSakit}
+                    onChange={(e) => setKepalaRumahSakit(e.target.value)}
+                    required
+                    placeholder="Wajib diisi — contoh: dr. Tolib Bahasuan"
+                    className={`w-full rounded p-1.5 border text-xs font-semibold text-slate-900 focus:ring-emerald-500 focus:border-emerald-500 ${
+                      isMissingField(kepalaRumahSakit)
+                        ? "border-rose-400 bg-rose-50/40"
+                        : "border-slate-300 bg-white"
+                    }`}
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-semibold text-slate-600 mb-0.5">
+                    Jabatan <span className="text-rose-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    value={kepalaRumahSakitJabatan}
+                    onChange={(e) => setKepalaRumahSakitJabatan(e.target.value)}
+                    required
+                    placeholder="Wajib diisi — contoh: Kepala Rumah Sakit"
+                    className={`w-full rounded p-1.5 border text-xs font-semibold text-slate-900 focus:ring-emerald-500 focus:border-emerald-500 ${
+                      isMissingField(kepalaRumahSakitJabatan)
+                        ? "border-rose-400 bg-rose-50/40"
+                        : "border-slate-300 bg-white"
+                    }`}
+                  />
+                </div>
+              </div>
             </div>
           </div>
 
@@ -477,10 +460,7 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
                   <input
                     type="text"
                     value={drafterNama}
-                    onChange={(e) => {
-                      manualEditsRef.current.drafterNama = true;
-                      setDrafterNama(e.target.value);
-                    }}
+                    onChange={(e) => setDrafterNama(e.target.value)}
                     required
                     placeholder="Wajib diisi nama & gelar"
                     className={`w-full rounded p-1.5 border text-xs ${
@@ -497,10 +477,7 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
                   <input
                     type="text"
                     value={drafterJabatan}
-                    onChange={(e) => {
-                      manualEditsRef.current.drafterJabatan = true;
-                      setDrafterJabatan(e.target.value);
-                    }}
+                    onChange={(e) => setDrafterJabatan(e.target.value)}
                     required
                     placeholder="Wajib diisi jabatan"
                     className={`w-full rounded p-1.5 border text-xs ${
@@ -524,10 +501,7 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
                   <input
                     type="text"
                     value={creatorNama}
-                    onChange={(e) => {
-                      manualEditsRef.current.creatorNama = true;
-                      setCreatorNama(e.target.value);
-                    }}
+                    onChange={(e) => setCreatorNama(e.target.value)}
                     required
                     placeholder="Wajib diisi nama & gelar"
                     className={`w-full rounded p-1.5 border text-xs ${
@@ -544,10 +518,7 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
                   <input
                     type="text"
                     value={creatorJabatan}
-                    onChange={(e) => {
-                      manualEditsRef.current.creatorJabatan = true;
-                      setCreatorJabatan(e.target.value);
-                    }}
+                    onChange={(e) => setCreatorJabatan(e.target.value)}
                     required
                     placeholder="Wajib diisi jabatan"
                     className={`w-full rounded p-1.5 border text-xs ${
@@ -571,10 +542,7 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
                   <input
                     type="text"
                     value={reviewerNama}
-                    onChange={(e) => {
-                      manualEditsRef.current.reviewerNama = true;
-                      setReviewerNama(e.target.value);
-                    }}
+                    onChange={(e) => setReviewerNama(e.target.value)}
                     required
                     placeholder="Wajib diisi nama & gelar"
                     className={`w-full rounded p-1.5 border text-xs ${
@@ -591,10 +559,7 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
                   <input
                     type="text"
                     value={reviewerJabatan}
-                    onChange={(e) => {
-                      manualEditsRef.current.reviewerJabatan = true;
-                      setReviewerJabatan(e.target.value);
-                    }}
+                    onChange={(e) => setReviewerJabatan(e.target.value)}
                     required
                     placeholder="Wajib diisi jabatan"
                     className={`w-full rounded p-1.5 border text-xs ${
