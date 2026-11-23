@@ -25,7 +25,7 @@ export const INSTITUTION_OPTIONS: InstitutionBranding[] = [
     id: "pt_cipta_nirmala",
     label: "PT Cipta Nirmala",
     fullName: "PT CIPTA NIRMALA",
-    logoPath: "/assets/aistudio/cipta nirmala.png",
+    logoPath: "/assets/aistudio/cipta nirmala.jpg",
     alt: "Logo PT Cipta Nirmala",
     isPlaceholderLogo: false,
   },
