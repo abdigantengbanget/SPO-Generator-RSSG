@@ -594,10 +594,11 @@ async function generateSpoWithOpenRouter(prompt: string): Promise<{
 interface AssembleSpoParams {
   judul: string;
   institusi?: string;
-  noDokumen?: string;
-  noRevisi?: string;
-  tanggalTerbit?: string;
+  noDokumen: string;
+  noRevisi: string;
+  tanggalTerbit: string;
   kepalaRumahSakit: string;
+  kepalaRumahSakitJabatan: string;
   drafterNama: string;
   drafterJabatan: string;
   creatorNama: string;
@@ -614,6 +615,7 @@ function assembleFullSpoDocument(parsedJson: any, params: AssembleSpoParams) {
     noRevisi,
     tanggalTerbit,
     kepalaRumahSakit,
+    kepalaRumahSakitJabatan,
     drafterNama,
     drafterJabatan,
     creatorNama,
@@ -692,24 +694,10 @@ function assembleFullSpoDocument(parsedJson: any, params: AssembleSpoParams) {
   const cleanReviewerNama = (reviewerNama || "").trim();
   const cleanReviewerJab = (reviewerJabatan || "").trim();
   const cleanDocNo = (noDokumen || "").trim();
+  const cleanNoRevisi = (noRevisi || "").trim();
   const cleanTanggal = (tanggalTerbit || "").trim();
   const cleanKepalaRS = (kepalaRumahSakit || "").trim();
-
-  const todayFormatted = new Date().toLocaleDateString("id-ID", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
-
-  const isRehab =
-    (judul || "").toLowerCase().includes("rehabilitasi") ||
-    (judul || "").toLowerCase().includes("fisioterapi") ||
-    (judul || "").toLowerCase().includes("tlb");
-  const isOldDefaultDocNo = noDokumen === "QAP/102341/770";
-  const chosenDocNo =
-    (!isRehab && isOldDefaultDocNo) || !cleanDocNo
-      ? `SPO/MED/${new Date().getFullYear()}/${Math.floor(100 + Math.random() * 900)}`
-      : cleanDocNo;
+  const cleanKepalaRSJabatan = (kepalaRumahSakitJabatan || "").trim();
 
   const fullSPO: any = {
     ...parsedJson,
@@ -729,13 +717,12 @@ function assembleFullSpoDocument(parsedJson: any, params: AssembleSpoParams) {
     tanggungJawabUnit: normalizedTanggungJawab,
     judulSpo: (parsedJson.judulSpo || judul).toUpperCase(),
     metadata: {
-      institusi:
-        (institusi || "").trim() ||
-        "RUMAH SAKIT SEMEN GRESIK / PT CIPTA NIRMALA",
-      noDokumen: chosenDocNo,
-      noRevisi: (noRevisi || "").trim() || "0",
-      tanggalTerbit: cleanTanggal || todayFormatted,
+      institusi: (institusi || "").trim() || "RUMAH SAKIT SEMEN GRESIK",
+      noDokumen: cleanDocNo,
+      noRevisi: cleanNoRevisi,
+      tanggalTerbit: cleanTanggal,
       kepalaRumahSakit: cleanKepalaRS,
+      kepalaRumahSakitJabatan: cleanKepalaRSJabatan,
       drafter: {
         nama: cleanDrafterNama,
         jabatan: cleanDrafterJab,
@@ -810,6 +797,7 @@ apiApp.post("/api/generate-spo", async (req, res) => {
     noRevisi,
     tanggalTerbit,
     kepalaRumahSakit,
+    kepalaRumahSakitJabatan,
     drafterNama,
     drafterJabatan,
     creatorNama,
@@ -823,7 +811,11 @@ apiApp.post("/api/generate-spo", async (req, res) => {
   }
 
   if (
+    !String(noDokumen || "").trim() ||
+    !String(noRevisi || "").trim() ||
+    !String(tanggalTerbit || "").trim() ||
     !String(kepalaRumahSakit || "").trim() ||
+    !String(kepalaRumahSakitJabatan || "").trim() ||
     !String(drafterNama || "").trim() ||
     !String(drafterJabatan || "").trim() ||
     !String(creatorNama || "").trim() ||
@@ -833,22 +825,17 @@ apiApp.post("/api/generate-spo", async (req, res) => {
   ) {
     return res.status(400).json({
       error:
-        "Nama Kepala Rumah Sakit serta Nama & Jabatan Drafter, Creator, dan Reviewer wajib diisi.",
+        "No. Dokumen, No. Revisi, Tanggal Terbit, Nama & Jabatan Penetap (Ditetapkan Oleh), serta Nama & Jabatan Drafter, Creator, dan Reviewer wajib diisi lengkap.",
     });
   }
 
   // Hybrid AI Pipeline: 1. Gemini -> 2. OpenRouter
-  const todayFormattedPrompt = new Date().toLocaleDateString("id-ID", {
-    day: "numeric",
-    month: "long",
-    year: "numeric",
-  });
-  const effectiveRevisi = (noRevisi || "").trim() || "0";
-  const effectiveTanggal = (tanggalTerbit || "").trim() || todayFormattedPrompt;
+  const effectiveRevisi = String(noRevisi).trim();
+  const effectiveTanggal = String(tanggalTerbit).trim();
 
   const prompt = `Buatlah draf dokumen Standar Prosedur Operasional (SPO) resmi yang lengkap, mendalam, dan akurat untuk:
 Judul SPO: "${judul}"
-Institusi: "${institusi || "RUMAH SAKIT SEMEN GRESIK / PT CIPTA NIRMALA"}"
+Institusi: "${institusi || "RUMAH SAKIT SEMEN GRESIK"}"
 No. Revisi Dokumen: "${effectiveRevisi}"
 Tanggal Terbit Dokumen: "${effectiveTanggal}"
 Konteks / Arahan Khusus Operasional: "${konteksTambahan || "Sesuai standar pelayanan rumah sakit, kendali mutu & kendali biaya, mitigasi risiko operasional, dan kepatuhan regulasi kesehatan nasional."}"
@@ -867,6 +854,7 @@ Pastikan data teknis, klausul kebijakan, tabel risk register, dan uraian alur pr
     noRevisi,
     tanggalTerbit,
     kepalaRumahSakit,
+    kepalaRumahSakitJabatan,
     drafterNama,
     drafterJabatan,
     creatorNama,

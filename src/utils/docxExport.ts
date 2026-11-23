@@ -16,6 +16,8 @@ import {
   TableLayoutType,
   HeightRule,
   LineRuleType,
+  Header,
+  PageNumber,
 } from "docx";
 import { SpoDocument } from "../types/spo";
 import { buildFlowchartSvgMarkup } from "./flowchartHelper";
@@ -29,8 +31,10 @@ const COLOR_SLATE_800 = "1E293B";
 const COLOR_SLATE_700 = "334155";
 const COLOR_SLATE_500 = "64748B";
 const COLOR_SLATE_400 = "94A3B8";
-const BG_SLATE_100 = "F1F5F9";
+const COLOR_WHITE = "FFFFFF";
 const BG_SLATE_50 = "F8FAFC";
+const BG_GRID4_HEADER = "4472C4";
+const BG_GRID4_STRIPE = "D9E1F2";
 
 // A4 Portrait (210mm x 297mm) = 11906 x 16838 twips, 15mm (850 twips) margins => 10206 twips content width
 const PAGE_WIDTH_TWIPS = 11906;
@@ -44,11 +48,18 @@ const BORDER_THIN_BLACK = {
   right: { style: BorderStyle.SINGLE, size: 6, color: "000000" },
 };
 
-const BORDER_THICK_BLACK = {
-  top: { style: BorderStyle.SINGLE, size: 12, color: "000000" },
-  bottom: { style: BorderStyle.SINGLE, size: 12, color: "000000" },
-  left: { style: BorderStyle.SINGLE, size: 12, color: "000000" },
-  right: { style: BorderStyle.SINGLE, size: 12, color: "000000" },
+const BORDER_GRID4_HEADER = {
+  top: { style: BorderStyle.SINGLE, size: 6, color: "4472C4" },
+  bottom: { style: BorderStyle.SINGLE, size: 6, color: "8EA9DB" },
+  left: { style: BorderStyle.SINGLE, size: 6, color: "4472C4" },
+  right: { style: BorderStyle.SINGLE, size: 6, color: "4472C4" },
+};
+
+const BORDER_GRID4_BODY = {
+  top: { style: BorderStyle.SINGLE, size: 6, color: "8EA9DB" },
+  bottom: { style: BorderStyle.SINGLE, size: 6, color: "8EA9DB" },
+  left: { style: BorderStyle.SINGLE, size: 6, color: "8EA9DB" },
+  right: { style: BorderStyle.SINGLE, size: 6, color: "8EA9DB" },
 };
 
 const CELL_MARGIN_STANDARD = { top: 100, bottom: 100, left: 120, right: 120 };
@@ -74,12 +85,40 @@ function makeRun(
       cs: DOC_FONT,
       eastAsia: DOC_FONT,
     },
-    size: opts.size ?? 21, // 10.5pt (matches 14px web preview)
+    size: opts.size ?? 22, // 11pt Calibri
     bold: opts.bold,
     italics: opts.italics,
     color: opts.color ?? COLOR_SLATE_800,
     underline: opts.underline ? {} : undefined,
     characterSpacing: opts.characterSpacing,
+  });
+}
+
+function makeDynamicPageNumberParagraph(): Paragraph {
+  const font = {
+    ascii: DOC_FONT,
+    hAnsi: DOC_FONT,
+    cs: DOC_FONT,
+    eastAsia: DOC_FONT,
+  };
+  return new Paragraph({
+    alignment: AlignmentType.CENTER,
+    spacing: { after: 0, line: 240 },
+    children: [
+      new TextRun({
+        children: [PageNumber.CURRENT],
+        font,
+        size: 24,
+        color: COLOR_SLATE_900,
+      }),
+      new TextRun({ text: " dari ", font, size: 24, color: COLOR_SLATE_900 }),
+      new TextRun({
+        children: [PageNumber.TOTAL_PAGES],
+        font,
+        size: 24,
+        color: COLOR_SLATE_900,
+      }),
+    ],
   });
 }
 
@@ -118,7 +157,7 @@ function makeSubHeading(
     },
     children: [
       makeRun(uppercase ? text.toUpperCase() : text, {
-        size: 21, // 10.5pt (matches text-sm)
+        size: 24, // 12pt Calibri
         bold: true,
         color: uppercase ? COLOR_SLATE_900 : COLOR_SLATE_800,
       }),
@@ -194,8 +233,9 @@ async function svgToPngBytes(
 export async function exportToDocx(spo: SpoDocument): Promise<void> {
   const branding = getInstitutionBranding(spo.metadata?.institusi);
 
-  // Fetch active institution logo (RS Semen Gresik or PT Cipta Nirmala)
-  let logoParagraphs: Paragraph[] = [];
+  // Fetch active institution logo bytes once, then build fresh Paragraph/ImageRun nodes per table
+  let logoImageBytes: ArrayBuffer | null = null;
+  let logoImageType: "jpg" | "png" = "png";
   try {
     const res = await fetch(branding.logoPath);
     if (res.ok) {
@@ -209,32 +249,36 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
 
       if (imageBytes) {
         const header = new Uint8Array(imageBytes.slice(0, 2));
-        const imageType: "jpg" | "png" =
+        logoImageType =
           header[0] === 0xff && header[1] === 0xd8 ? "jpg" : "png";
-        logoParagraphs = [
-          new Paragraph({
-            alignment: AlignmentType.CENTER,
-            spacing: { before: 0, after: 0 },
-            children: [
-              new ImageRun({
-                type: imageType,
-                data: imageBytes,
-                transformation: {
-                  width: 102,
-                  height: 102,
-                },
-              }),
-            ],
-          }),
-        ];
+        logoImageBytes = imageBytes;
       }
     }
   } catch (err) {
     console.warn("Could not load logo for docx, using text fallback", err);
   }
 
-  if (logoParagraphs.length === 0) {
-    logoParagraphs = [
+  const buildLogoParagraphs = (dimension = 102): Paragraph[] => {
+    if (logoImageBytes) {
+      return [
+        new Paragraph({
+          alignment: AlignmentType.CENTER,
+          spacing: { before: 0, after: 0 },
+          children: [
+            new ImageRun({
+              type: logoImageType,
+              data: logoImageBytes,
+              transformation: {
+                width: dimension,
+                height: dimension,
+              },
+            }),
+          ],
+        }),
+      ];
+    }
+
+    return [
       new Paragraph({
         alignment: AlignmentType.CENTER,
         children: [
@@ -246,152 +290,150 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
         ],
       }),
     ];
-  }
+  };
+
+  const buildKopTopRows = (logoDimension = 102): TableRow[] => [
+    // Row 1: Logo (Col 1, rowSpan 2) & Judul SPO (Col 2-4, columnSpan 3)
+    new TableRow({
+      cantSplit: true,
+      children: [
+        new TableCell({
+          width: { size: 2246, type: WidthType.DXA },
+          rowSpan: 2,
+          verticalAlign: VerticalAlignTable.CENTER,
+          margins: CELL_MARGIN_STANDARD,
+          borders: BORDER_THIN_BLACK,
+          children: buildLogoParagraphs(logoDimension),
+        }),
+        new TableCell({
+          width: { size: 7960, type: WidthType.DXA },
+          columnSpan: 3,
+          verticalAlign: VerticalAlignTable.CENTER,
+          margins: { top: 160, bottom: 160, left: 180, right: 180 },
+          borders: BORDER_THIN_BLACK,
+          children: [
+            new Paragraph({
+              alignment: AlignmentType.CENTER,
+              spacing: {
+                before: 0,
+                after: 0,
+                line: 280,
+                lineRule: LineRuleType.AUTO,
+              },
+              children: [
+                makeRun(
+                  (
+                    spo.judulSpo || "STANDAR PROSEDUR OPERASIONAL"
+                  ).toUpperCase(),
+                  {
+                    bold: true,
+                    size: 28, // 14pt Calibri
+                    color: COLOR_SLATE_900,
+                    characterSpacing: 10,
+                  },
+                ),
+              ],
+            }),
+          ],
+        }),
+      ],
+    }),
+    // Row 2: No Dokumen | No Revisi | Halaman
+    new TableRow({
+      cantSplit: true,
+      children: [
+        new TableCell({
+          width: { size: 2653, type: WidthType.DXA },
+          verticalAlign: VerticalAlignTable.CENTER,
+          margins: CELL_MARGIN_COMPACT,
+          borders: BORDER_THIN_BLACK,
+          children: [
+            new Paragraph({
+              alignment: AlignmentType.CENTER,
+              spacing: { after: 30, line: 240 },
+              children: [
+                makeRun("No. Dokumen", {
+                  bold: true,
+                  size: 24,
+                  color: COLOR_SLATE_700,
+                }),
+              ],
+            }),
+            new Paragraph({
+              alignment: AlignmentType.CENTER,
+              spacing: { after: 0, line: 240 },
+              children: [
+                makeRun(spo.metadata.noDokumen || "-", {
+                  size: 24,
+                  color: COLOR_SLATE_900,
+                }),
+              ],
+            }),
+          ],
+        }),
+        new TableCell({
+          width: { size: 2653, type: WidthType.DXA },
+          verticalAlign: VerticalAlignTable.CENTER,
+          margins: CELL_MARGIN_COMPACT,
+          borders: BORDER_THIN_BLACK,
+          children: [
+            new Paragraph({
+              alignment: AlignmentType.CENTER,
+              spacing: { after: 30, line: 240 },
+              children: [
+                makeRun("No. Revisi", {
+                  bold: true,
+                  size: 24,
+                  color: COLOR_SLATE_700,
+                }),
+              ],
+            }),
+            new Paragraph({
+              alignment: AlignmentType.CENTER,
+              spacing: { after: 0, line: 240 },
+              children: [
+                makeRun(spo.metadata.noRevisi || "0", {
+                  size: 24,
+                  color: COLOR_SLATE_900,
+                }),
+              ],
+            }),
+          ],
+        }),
+        new TableCell({
+          width: { size: 2654, type: WidthType.DXA },
+          verticalAlign: VerticalAlignTable.CENTER,
+          margins: CELL_MARGIN_COMPACT,
+          borders: BORDER_THIN_BLACK,
+          children: [
+            new Paragraph({
+              alignment: AlignmentType.CENTER,
+              spacing: { after: 30, line: 240 },
+              children: [
+                makeRun("Halaman", {
+                  bold: true,
+                  size: 24,
+                  color: COLOR_SLATE_700,
+                }),
+              ],
+            }),
+            makeDynamicPageNumberParagraph(),
+          ],
+        }),
+      ],
+    }),
+  ];
 
   // =========================================================================
-  // KOP / HEADER TABLE (22% | 26% | 26% | 26% = [2246, 2653, 2653, 2654])
+  // KOP / HEADER TABLE HALAMAN 1 (22% | 26% | 26% | 26% = [2246, 2653, 2653, 2654])
   // =========================================================================
   const headerTable = new Table({
     width: { size: 10206, type: WidthType.DXA },
     columnWidths: [2246, 2653, 2653, 2654],
     layout: TableLayoutType.FIXED,
-    borders: BORDER_THICK_BLACK,
+    borders: BORDER_THIN_BLACK,
     rows: [
-      // Row 1: Logo (Col 1, rowSpan 2) & Judul SPO (Col 2-4, columnSpan 3)
-      new TableRow({
-        cantSplit: true,
-        children: [
-          new TableCell({
-            width: { size: 2246, type: WidthType.DXA },
-            rowSpan: 2,
-            verticalAlign: VerticalAlignTable.CENTER,
-            margins: CELL_MARGIN_STANDARD,
-            borders: BORDER_THICK_BLACK,
-            children: logoParagraphs,
-          }),
-          new TableCell({
-            width: { size: 7960, type: WidthType.DXA },
-            columnSpan: 3,
-            verticalAlign: VerticalAlignTable.CENTER,
-            margins: { top: 180, bottom: 180, left: 180, right: 180 },
-            borders: BORDER_THICK_BLACK,
-            children: [
-              new Paragraph({
-                alignment: AlignmentType.CENTER,
-                spacing: {
-                  before: 0,
-                  after: 0,
-                  line: 280,
-                  lineRule: LineRuleType.AUTO,
-                },
-                children: [
-                  makeRun(
-                    (
-                      spo.judulSpo || "STANDAR PROSEDUR OPERASIONAL"
-                    ).toUpperCase(),
-                    {
-                      bold: true,
-                      size: 26, // 13pt (matches text-base md:text-lg)
-                      color: COLOR_SLATE_900,
-                      characterSpacing: 10,
-                    },
-                  ),
-                ],
-              }),
-            ],
-          }),
-        ],
-      }),
-      // Row 2: No Dokumen | No Revisi | Halaman
-      new TableRow({
-        cantSplit: true,
-        children: [
-          new TableCell({
-            width: { size: 2653, type: WidthType.DXA },
-            verticalAlign: VerticalAlignTable.CENTER,
-            margins: CELL_MARGIN_COMPACT,
-            borders: BORDER_THICK_BLACK,
-            children: [
-              new Paragraph({
-                alignment: AlignmentType.CENTER,
-                spacing: { after: 30, line: 240 },
-                children: [
-                  makeRun("No. Dokumen", {
-                    bold: true,
-                    size: 17,
-                    color: COLOR_SLATE_700,
-                  }),
-                ],
-              }),
-              new Paragraph({
-                alignment: AlignmentType.CENTER,
-                spacing: { after: 0, line: 240 },
-                children: [
-                  makeRun(spo.metadata.noDokumen || "-", {
-                    size: 20,
-                    color: COLOR_SLATE_900,
-                  }),
-                ],
-              }),
-            ],
-          }),
-          new TableCell({
-            width: { size: 2653, type: WidthType.DXA },
-            verticalAlign: VerticalAlignTable.CENTER,
-            margins: CELL_MARGIN_COMPACT,
-            borders: BORDER_THICK_BLACK,
-            children: [
-              new Paragraph({
-                alignment: AlignmentType.CENTER,
-                spacing: { after: 30, line: 240 },
-                children: [
-                  makeRun("No. Revisi", {
-                    bold: true,
-                    size: 17,
-                    color: COLOR_SLATE_700,
-                  }),
-                ],
-              }),
-              new Paragraph({
-                alignment: AlignmentType.CENTER,
-                spacing: { after: 0, line: 240 },
-                children: [
-                  makeRun(spo.metadata.noRevisi || "0", {
-                    size: 20,
-                    color: COLOR_SLATE_900,
-                  }),
-                ],
-              }),
-            ],
-          }),
-          new TableCell({
-            width: { size: 2654, type: WidthType.DXA },
-            verticalAlign: VerticalAlignTable.CENTER,
-            margins: CELL_MARGIN_COMPACT,
-            borders: BORDER_THICK_BLACK,
-            children: [
-              new Paragraph({
-                alignment: AlignmentType.CENTER,
-                spacing: { after: 30, line: 240 },
-                children: [
-                  makeRun("Halaman", {
-                    bold: true,
-                    size: 17,
-                    color: COLOR_SLATE_700,
-                  }),
-                ],
-              }),
-              new Paragraph({
-                alignment: AlignmentType.CENTER,
-                spacing: { after: 0, line: 240 },
-                children: [
-                  makeRun("1 dari 1", { size: 20, color: COLOR_SLATE_900 }),
-                ],
-              }),
-            ],
-          }),
-        ],
-      }),
+      ...buildKopTopRows(102),
       // Row 3: SPO | Tanggal terbit | Ditetapkan Kepala RS
       new TableRow({
         cantSplit: true,
@@ -401,7 +443,7 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
             width: { size: 2246, type: WidthType.DXA },
             verticalAlign: VerticalAlignTable.CENTER,
             margins: CELL_MARGIN_STANDARD,
-            borders: BORDER_THICK_BLACK,
+            borders: BORDER_THIN_BLACK,
             children: [
               new Paragraph({
                 alignment: AlignmentType.CENTER,
@@ -421,7 +463,7 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
             width: { size: 2653, type: WidthType.DXA },
             verticalAlign: VerticalAlignTable.CENTER,
             margins: CELL_MARGIN_STANDARD,
-            borders: BORDER_THICK_BLACK,
+            borders: BORDER_THIN_BLACK,
             children: [
               new Paragraph({
                 alignment: AlignmentType.CENTER,
@@ -429,7 +471,7 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
                 children: [
                   makeRun("Tanggal terbit", {
                     bold: true,
-                    size: 17,
+                    size: 24,
                     color: COLOR_SLATE_700,
                   }),
                 ],
@@ -439,7 +481,7 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
                 spacing: { after: 0, line: 240 },
                 children: [
                   makeRun(spo.metadata.tanggalTerbit || "-", {
-                    size: 20,
+                    size: 24,
                     color: COLOR_SLATE_900,
                   }),
                 ],
@@ -451,7 +493,7 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
             columnSpan: 2,
             verticalAlign: VerticalAlignTable.BOTTOM,
             margins: { top: 120, bottom: 120, left: 120, right: 120 },
-            borders: BORDER_THICK_BLACK,
+            borders: BORDER_THIN_BLACK,
             children: [
               new Paragraph({
                 alignment: AlignmentType.CENTER,
@@ -459,7 +501,7 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
                 children: [
                   makeRun("Ditetapkan,", {
                     bold: true,
-                    size: 17,
+                    size: 24,
                     color: COLOR_SLATE_700,
                   }),
                 ],
@@ -471,7 +513,7 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
                   makeRun(
                     spo.metadata.kepalaRumahSakitJabatan?.trim() ||
                       "Kepala Rumah Sakit",
-                    { size: 17, color: COLOR_SLATE_800 },
+                    { size: 24, color: COLOR_SLATE_800 },
                   ),
                 ],
               }),
@@ -483,11 +525,11 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
                     ? makeRun(spo.metadata.kepalaRumahSakit.trim(), {
                         bold: true,
                         underline: true,
-                        size: 20,
+                        size: 24,
                         color: COLOR_SLATE_900,
                       })
                     : makeRun("________________________", {
-                        size: 20,
+                        size: 24,
                         color: COLOR_SLATE_700,
                       }),
                 ],
@@ -514,7 +556,7 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
       children: [
         makeRun(
           "Untuk menyamakan persepsi operasional di seluruh unit, batasan istilah dalam prosedur ini ditetapkan sebagai berikut:",
-          { size: 21, color: COLOR_SLATE_700 },
+          { size: 22, color: COLOR_SLATE_700 },
         ),
       ],
     }),
@@ -531,15 +573,15 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
           children: [
             makeRun(`${index + 1}. `, {
               bold: true,
-              size: 21,
+              size: 22,
               color: COLOR_SLATE_900,
             }),
             makeRun(`${def.istilah}: `, {
               bold: true,
-              size: 21,
+              size: 22,
               color: COLOR_SLATE_900,
             }),
-            makeRun(def.penjelasan, { size: 21, color: COLOR_SLATE_800 }),
+            makeRun(def.penjelasan, { size: 22, color: COLOR_SLATE_800 }),
           ],
         }),
       );
@@ -551,7 +593,7 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
         children: [
           makeRun("Belum ada definisi istilah yang ditambahkan.", {
             italics: true,
-            size: 19,
+            size: 22,
             color: COLOR_SLATE_500,
           }),
         ],
@@ -569,7 +611,7 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
         makeRun(
           spo.pengertian.ruangLingkup.pengantar ||
             "Prosedur ini berlaku di lingkungan Rumah Sakit dan mengikat seluruh unit pelayanan terkait:",
-          { size: 21, color: COLOR_SLATE_700 },
+          { size: 22, color: COLOR_SLATE_700 },
         ),
       ],
     }),
@@ -583,10 +625,10 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
         children: [
           makeRun(`${idx + 1}. `, {
             bold: true,
-            size: 21,
+            size: 22,
             color: COLOR_SLATE_900,
           }),
-          makeRun(unit, { size: 21, color: COLOR_SLATE_800 }),
+          makeRun(unit, { size: 22, color: COLOR_SLATE_800 }),
         ],
       }),
     );
@@ -601,7 +643,7 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
       children: [
         makeRun(
           "Prosedur ini bertujuan untuk menetapkan standar operasional dalam mengelola dan memitigasi risiko operasional dengan sasaran:",
-          { size: 21, color: COLOR_SLATE_700 },
+          { size: 22, color: COLOR_SLATE_700 },
         ),
       ],
     }),
@@ -615,13 +657,13 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
           indent: { left: 420, hanging: 240 },
           spacing: { after: 90 },
           children: [
-            makeRun("● ", { size: 17, color: COLOR_SLATE_900 }),
+            makeRun("● ", { size: 18, color: COLOR_SLATE_900 }),
             makeRun(`${tuj.judulTujuan}: `, {
               bold: true,
-              size: 21,
+              size: 22,
               color: COLOR_SLATE_900,
             }),
-            makeRun(tuj.deskripsi, { size: 21, color: COLOR_SLATE_800 }),
+            makeRun(tuj.deskripsi, { size: 22, color: COLOR_SLATE_800 }),
           ],
         }),
       );
@@ -633,7 +675,7 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
         children: [
           makeRun("Belum ada sasaran tujuan yang ditambahkan.", {
             italics: true,
-            size: 19,
+            size: 22,
             color: COLOR_SLATE_500,
           }),
         ],
@@ -656,10 +698,10 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
         children: [
           makeRun(`${idx + 1}. `, {
             bold: true,
-            size: 21,
+            size: 22,
             color: COLOR_SLATE_900,
           }),
-          makeRun(k, { size: 21, color: COLOR_SLATE_800 }),
+          makeRun(k, { size: 22, color: COLOR_SLATE_800 }),
         ],
       }),
     );
@@ -674,12 +716,24 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
 
   // =========================================================================
   // C.2 RISK REGISTER TABLE (8% | 22% | 20% | 25% | 25% = [816, 2245, 2041, 2552, 2552])
+  // Gaya Word: Grid Table 4 - Accent 1
   // =========================================================================
-  const riskHeaderShading = {
+  const grid4HeaderShading = {
     type: ShadingType.CLEAR,
-    fill: BG_SLATE_100,
+    fill: BG_GRID4_HEADER,
     color: "auto",
   };
+  const grid4StripeShading = {
+    type: ShadingType.CLEAR,
+    fill: BG_GRID4_STRIPE,
+    color: "auto",
+  };
+  const grid4WhiteShading = {
+    type: ShadingType.CLEAR,
+    fill: COLOR_WHITE,
+    color: "auto",
+  };
+
   const riskTableRows: TableRow[] = [
     new TableRow({
       tableHeader: true,
@@ -688,19 +742,15 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
         new TableCell({
           width: { size: 816, type: WidthType.DXA },
           verticalAlign: VerticalAlignTable.CENTER,
-          shading: riskHeaderShading,
+          shading: grid4HeaderShading,
           margins: CELL_MARGIN_STANDARD,
-          borders: BORDER_THIN_BLACK,
+          borders: BORDER_GRID4_HEADER,
           children: [
             new Paragraph({
               alignment: AlignmentType.CENTER,
               spacing: { after: 0 },
               children: [
-                makeRun("KODE", {
-                  bold: true,
-                  size: 18,
-                  color: COLOR_SLATE_900,
-                }),
+                makeRun("KODE", { bold: true, size: 22, color: COLOR_WHITE }),
               ],
             }),
           ],
@@ -708,9 +758,9 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
         new TableCell({
           width: { size: 2245, type: WidthType.DXA },
           verticalAlign: VerticalAlignTable.CENTER,
-          shading: riskHeaderShading,
+          shading: grid4HeaderShading,
           margins: CELL_MARGIN_STANDARD,
-          borders: BORDER_THIN_BLACK,
+          borders: BORDER_GRID4_HEADER,
           children: [
             new Paragraph({
               alignment: AlignmentType.CENTER,
@@ -718,8 +768,8 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
               children: [
                 makeRun("PROSES / AKTIVITAS", {
                   bold: true,
-                  size: 18,
-                  color: COLOR_SLATE_900,
+                  size: 22,
+                  color: COLOR_WHITE,
                 }),
               ],
             }),
@@ -728,9 +778,9 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
         new TableCell({
           width: { size: 2041, type: WidthType.DXA },
           verticalAlign: VerticalAlignTable.CENTER,
-          shading: riskHeaderShading,
+          shading: grid4HeaderShading,
           margins: CELL_MARGIN_STANDARD,
-          borders: BORDER_THIN_BLACK,
+          borders: BORDER_GRID4_HEADER,
           children: [
             new Paragraph({
               alignment: AlignmentType.CENTER,
@@ -738,8 +788,8 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
               children: [
                 makeRun("NAMA RISIKO", {
                   bold: true,
-                  size: 18,
-                  color: COLOR_SLATE_900,
+                  size: 22,
+                  color: COLOR_WHITE,
                 }),
               ],
             }),
@@ -748,9 +798,9 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
         new TableCell({
           width: { size: 2552, type: WidthType.DXA },
           verticalAlign: VerticalAlignTable.CENTER,
-          shading: riskHeaderShading,
+          shading: grid4HeaderShading,
           margins: CELL_MARGIN_STANDARD,
-          borders: BORDER_THIN_BLACK,
+          borders: BORDER_GRID4_HEADER,
           children: [
             new Paragraph({
               alignment: AlignmentType.CENTER,
@@ -758,8 +808,8 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
               children: [
                 makeRun("DESKRIPSI RISIKO", {
                   bold: true,
-                  size: 18,
-                  color: COLOR_SLATE_900,
+                  size: 22,
+                  color: COLOR_WHITE,
                 }),
               ],
             }),
@@ -768,9 +818,9 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
         new TableCell({
           width: { size: 2552, type: WidthType.DXA },
           verticalAlign: VerticalAlignTable.CENTER,
-          shading: riskHeaderShading,
+          shading: grid4HeaderShading,
           margins: CELL_MARGIN_STANDARD,
-          borders: BORDER_THIN_BLACK,
+          borders: BORDER_GRID4_HEADER,
           children: [
             new Paragraph({
               alignment: AlignmentType.CENTER,
@@ -778,8 +828,8 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
               children: [
                 makeRun("PENGENDALIAN RISIKO / MITIGASI", {
                   bold: true,
-                  size: 18,
-                  color: COLOR_SLATE_900,
+                  size: 22,
+                  color: COLOR_WHITE,
                 }),
               ],
             }),
@@ -790,7 +840,8 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
   ];
 
   if (spo.kebijakan.riskRegister.length > 0) {
-    spo.kebijakan.riskRegister.forEach((r) => {
+    spo.kebijakan.riskRegister.forEach((r, idx) => {
+      const rowShading = idx % 2 === 0 ? grid4StripeShading : grid4WhiteShading;
       riskTableRows.push(
         new TableRow({
           cantSplit: true,
@@ -798,8 +849,9 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
             new TableCell({
               width: { size: 816, type: WidthType.DXA },
               verticalAlign: VerticalAlignTable.TOP,
+              shading: rowShading,
               margins: CELL_MARGIN_STANDARD,
-              borders: BORDER_THIN_BLACK,
+              borders: BORDER_GRID4_BODY,
               children: [
                 new Paragraph({
                   alignment: AlignmentType.CENTER,
@@ -807,7 +859,7 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
                   children: [
                     makeRun(r.kode, {
                       bold: true,
-                      size: 18,
+                      size: 22,
                       color: COLOR_SLATE_900,
                     }),
                   ],
@@ -817,15 +869,16 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
             new TableCell({
               width: { size: 2245, type: WidthType.DXA },
               verticalAlign: VerticalAlignTable.TOP,
+              shading: rowShading,
               margins: CELL_MARGIN_STANDARD,
-              borders: BORDER_THIN_BLACK,
+              borders: BORDER_GRID4_BODY,
               children: [
                 new Paragraph({
                   spacing: { after: 0 },
                   children: [
                     makeRun(r.proses, {
                       bold: true,
-                      size: 18,
+                      size: 22,
                       color: COLOR_SLATE_800,
                     }),
                   ],
@@ -835,15 +888,16 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
             new TableCell({
               width: { size: 2041, type: WidthType.DXA },
               verticalAlign: VerticalAlignTable.TOP,
+              shading: rowShading,
               margins: CELL_MARGIN_STANDARD,
-              borders: BORDER_THIN_BLACK,
+              borders: BORDER_GRID4_BODY,
               children: [
                 new Paragraph({
                   spacing: { after: 0 },
                   children: [
                     makeRun(r.namaRisiko, {
                       bold: true,
-                      size: 18,
+                      size: 22,
                       color: COLOR_SLATE_900,
                     }),
                   ],
@@ -853,15 +907,16 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
             new TableCell({
               width: { size: 2552, type: WidthType.DXA },
               verticalAlign: VerticalAlignTable.TOP,
+              shading: rowShading,
               margins: CELL_MARGIN_STANDARD,
-              borders: BORDER_THIN_BLACK,
+              borders: BORDER_GRID4_BODY,
               children: [
                 new Paragraph({
                   alignment: AlignmentType.JUSTIFIED,
                   spacing: { after: 0 },
                   children: [
                     makeRun(r.deskripsiRisiko, {
-                      size: 18,
+                      size: 22,
                       color: COLOR_SLATE_800,
                     }),
                   ],
@@ -871,8 +926,9 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
             new TableCell({
               width: { size: 2552, type: WidthType.DXA },
               verticalAlign: VerticalAlignTable.TOP,
+              shading: rowShading,
               margins: CELL_MARGIN_STANDARD,
-              borders: BORDER_THIN_BLACK,
+              borders: BORDER_GRID4_BODY,
               children: r.mitigasi.map(
                 (m, mIdx) =>
                   new Paragraph({
@@ -881,10 +937,10 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
                     spacing: { after: mIdx === r.mitigasi.length - 1 ? 0 : 50 },
                     children: [
                       makeRun(`${mIdx + 1}. `, {
-                        size: 18,
+                        size: 22,
                         color: COLOR_SLATE_800,
                       }),
-                      makeRun(m, { size: 18, color: COLOR_SLATE_800 }),
+                      makeRun(m, { size: 22, color: COLOR_SLATE_800 }),
                     ],
                   }),
               ),
@@ -900,13 +956,9 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
         children: [
           new TableCell({
             columnSpan: 5,
-            shading: {
-              type: ShadingType.CLEAR,
-              fill: BG_SLATE_50,
-              color: "auto",
-            },
+            shading: grid4StripeShading,
             margins: CELL_MARGIN_STANDARD,
-            borders: BORDER_THIN_BLACK,
+            borders: BORDER_GRID4_BODY,
             children: [
               new Paragraph({
                 alignment: AlignmentType.CENTER,
@@ -914,8 +966,8 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
                 children: [
                   makeRun("Belum ada data identifikasi risiko operasional.", {
                     italics: true,
-                    size: 18,
-                    color: COLOR_SLATE_400,
+                    size: 22,
+                    color: COLOR_SLATE_500,
                   }),
                 ],
               }),
@@ -930,12 +982,13 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
     width: { size: 10206, type: WidthType.DXA },
     columnWidths: [816, 2245, 2041, 2552, 2552],
     layout: TableLayoutType.FIXED,
-    borders: BORDER_THIN_BLACK,
+    borders: BORDER_GRID4_BODY,
     rows: riskTableRows,
   });
 
   // =========================================================================
   // D.1 PROSEDUR PELAKSANAAN TABLE (10% | 52% | 14% | 24% = [1021, 5307, 1429, 2449])
+  // Gaya Word: Grid Table 4 - Accent 1
   // =========================================================================
   const prosedurTableRows: TableRow[] = [
     new TableRow({
@@ -945,9 +998,9 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
         new TableCell({
           width: { size: 1021, type: WidthType.DXA },
           verticalAlign: VerticalAlignTable.CENTER,
-          shading: riskHeaderShading,
+          shading: grid4HeaderShading,
           margins: CELL_MARGIN_STANDARD,
-          borders: BORDER_THIN_BLACK,
+          borders: BORDER_GRID4_HEADER,
           children: [
             new Paragraph({
               alignment: AlignmentType.CENTER,
@@ -955,8 +1008,8 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
               children: [
                 makeRun("NO. PROSES", {
                   bold: true,
-                  size: 18,
-                  color: COLOR_SLATE_900,
+                  size: 22,
+                  color: COLOR_WHITE,
                 }),
               ],
             }),
@@ -965,9 +1018,9 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
         new TableCell({
           width: { size: 5307, type: WidthType.DXA },
           verticalAlign: VerticalAlignTable.CENTER,
-          shading: riskHeaderShading,
+          shading: grid4HeaderShading,
           margins: CELL_MARGIN_STANDARD,
-          borders: BORDER_THIN_BLACK,
+          borders: BORDER_GRID4_HEADER,
           children: [
             new Paragraph({
               alignment: AlignmentType.CENTER,
@@ -975,8 +1028,8 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
               children: [
                 makeRun("TAHAPAN & DESKRIPSI KEGIATAN", {
                   bold: true,
-                  size: 18,
-                  color: COLOR_SLATE_900,
+                  size: 22,
+                  color: COLOR_WHITE,
                 }),
               ],
             }),
@@ -985,9 +1038,9 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
         new TableCell({
           width: { size: 1429, type: WidthType.DXA },
           verticalAlign: VerticalAlignTable.CENTER,
-          shading: riskHeaderShading,
+          shading: grid4HeaderShading,
           margins: CELL_MARGIN_STANDARD,
-          borders: BORDER_THIN_BLACK,
+          borders: BORDER_GRID4_HEADER,
           children: [
             new Paragraph({
               alignment: AlignmentType.CENTER,
@@ -995,8 +1048,8 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
               children: [
                 makeRun("LEAD TIME", {
                   bold: true,
-                  size: 18,
-                  color: COLOR_SLATE_900,
+                  size: 22,
+                  color: COLOR_WHITE,
                 }),
               ],
             }),
@@ -1005,9 +1058,9 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
         new TableCell({
           width: { size: 2449, type: WidthType.DXA },
           verticalAlign: VerticalAlignTable.CENTER,
-          shading: riskHeaderShading,
+          shading: grid4HeaderShading,
           margins: CELL_MARGIN_STANDARD,
-          borders: BORDER_THIN_BLACK,
+          borders: BORDER_GRID4_HEADER,
           children: [
             new Paragraph({
               alignment: AlignmentType.CENTER,
@@ -1015,8 +1068,8 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
               children: [
                 makeRun("PELAKSANA / FUNGSI", {
                   bold: true,
-                  size: 18,
-                  color: COLOR_SLATE_900,
+                  size: 22,
+                  color: COLOR_WHITE,
                 }),
               ],
             }),
@@ -1027,14 +1080,15 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
   ];
 
   if (spo.prosedur.length > 0) {
-    spo.prosedur.forEach((p) => {
+    spo.prosedur.forEach((p, idx) => {
+      const rowShading = idx % 2 === 0 ? grid4StripeShading : grid4WhiteShading;
       const stepParagraphs = [
         new Paragraph({
           spacing: { after: 70 },
           children: [
             makeRun((p.judulTahapan || "-").toUpperCase(), {
               bold: true,
-              size: 18,
+              size: 22,
               color: COLOR_SLATE_900,
               characterSpacing: 8,
             }),
@@ -1047,8 +1101,8 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
               indent: { left: 260, hanging: 200 },
               spacing: { after: lIdx === p.langkah.length - 1 ? 0 : 50 },
               children: [
-                makeRun(`${lIdx + 1}. `, { size: 18, color: COLOR_SLATE_800 }),
-                makeRun(l, { size: 18, color: COLOR_SLATE_800 }),
+                makeRun(`${lIdx + 1}. `, { size: 22, color: COLOR_SLATE_800 }),
+                makeRun(l, { size: 22, color: COLOR_SLATE_800 }),
               ],
             }),
         ),
@@ -1061,8 +1115,9 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
             new TableCell({
               width: { size: 1021, type: WidthType.DXA },
               verticalAlign: VerticalAlignTable.TOP,
+              shading: rowShading,
               margins: CELL_MARGIN_STANDARD,
-              borders: BORDER_THIN_BLACK,
+              borders: BORDER_GRID4_BODY,
               children: [
                 new Paragraph({
                   alignment: AlignmentType.CENTER,
@@ -1070,7 +1125,7 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
                   children: [
                     makeRun(p.noProses, {
                       bold: true,
-                      size: 18,
+                      size: 22,
                       color: COLOR_SLATE_900,
                     }),
                   ],
@@ -1080,21 +1135,23 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
             new TableCell({
               width: { size: 5307, type: WidthType.DXA },
               verticalAlign: VerticalAlignTable.TOP,
+              shading: rowShading,
               margins: CELL_MARGIN_STANDARD,
-              borders: BORDER_THIN_BLACK,
+              borders: BORDER_GRID4_BODY,
               children: stepParagraphs,
             }),
             new TableCell({
               width: { size: 1429, type: WidthType.DXA },
               verticalAlign: VerticalAlignTable.TOP,
+              shading: rowShading,
               margins: CELL_MARGIN_STANDARD,
-              borders: BORDER_THIN_BLACK,
+              borders: BORDER_GRID4_BODY,
               children: [
                 new Paragraph({
                   alignment: AlignmentType.CENTER,
                   spacing: { after: 0 },
                   children: [
-                    makeRun(p.leadTime, { size: 18, color: COLOR_SLATE_800 }),
+                    makeRun(p.leadTime, { size: 22, color: COLOR_SLATE_800 }),
                   ],
                 }),
               ],
@@ -1102,13 +1159,14 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
             new TableCell({
               width: { size: 2449, type: WidthType.DXA },
               verticalAlign: VerticalAlignTable.TOP,
+              shading: rowShading,
               margins: CELL_MARGIN_STANDARD,
-              borders: BORDER_THIN_BLACK,
+              borders: BORDER_GRID4_BODY,
               children: [
                 new Paragraph({
                   spacing: { after: 0 },
                   children: [
-                    makeRun(p.pelaksana, { size: 18, color: COLOR_SLATE_800 }),
+                    makeRun(p.pelaksana, { size: 22, color: COLOR_SLATE_800 }),
                   ],
                 }),
               ],
@@ -1124,13 +1182,9 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
         children: [
           new TableCell({
             columnSpan: 4,
-            shading: {
-              type: ShadingType.CLEAR,
-              fill: BG_SLATE_50,
-              color: "auto",
-            },
+            shading: grid4StripeShading,
             margins: CELL_MARGIN_STANDARD,
-            borders: BORDER_THIN_BLACK,
+            borders: BORDER_GRID4_BODY,
             children: [
               new Paragraph({
                 alignment: AlignmentType.CENTER,
@@ -1138,8 +1192,8 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
                 children: [
                   makeRun("Belum ada tahapan prosedur yang ditambahkan.", {
                     italics: true,
-                    size: 18,
-                    color: COLOR_SLATE_400,
+                    size: 22,
+                    color: COLOR_SLATE_500,
                   }),
                 ],
               }),
@@ -1154,7 +1208,7 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
     width: { size: 10206, type: WidthType.DXA },
     columnWidths: [1021, 5307, 1429, 2449],
     layout: TableLayoutType.FIXED,
-    borders: BORDER_THIN_BLACK,
+    borders: BORDER_GRID4_BODY,
     rows: prosedurTableRows,
   });
 
@@ -1198,7 +1252,7 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
           spacing: { after: 50 },
           children: [
             makeRun(`${idx + 1}. ${node.label}`, {
-              size: 19,
+              size: 22,
               color: COLOR_SLATE_800,
             }),
           ],
@@ -1223,7 +1277,7 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
         children: [
           makeRun(`${idx + 1}. ${u.unit}:`, {
             bold: true,
-            size: 21,
+            size: 22,
             color: COLOR_SLATE_900,
           }),
         ],
@@ -1237,7 +1291,7 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
           spacing: { after: 50 },
           children: [
             makeRun("○ ", { size: 20, color: COLOR_SLATE_500 }),
-            makeRun(t, { size: 21, color: COLOR_SLATE_800 }),
+            makeRun(t, { size: 22, color: COLOR_SLATE_800 }),
           ],
         }),
       );
@@ -1261,10 +1315,10 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
           children: [
             makeRun(`${idx + 1}. `, {
               bold: true,
-              size: 21,
+              size: 22,
               color: COLOR_SLATE_900,
             }),
-            makeRun(d, { size: 21, color: COLOR_SLATE_800 }),
+            makeRun(d, { size: 22, color: COLOR_SLATE_800 }),
           ],
         }),
       );
@@ -1276,7 +1330,7 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
         children: [
           makeRun("Belum ada dokumen terkait yang ditambahkan.", {
             italics: true,
-            size: 19,
+            size: 22,
             color: COLOR_SLATE_500,
           }),
         ],
@@ -1302,7 +1356,7 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
           verticalAlign: VerticalAlignTable.CENTER,
           shading: riwayatHeaderShading,
           margins: CELL_MARGIN_WIDE,
-          borders: BORDER_THICK_BLACK,
+          borders: BORDER_THIN_BLACK,
           children: [
             new Paragraph({
               alignment: AlignmentType.CENTER,
@@ -1310,7 +1364,7 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
               children: [
                 makeRun("Tanggal", {
                   bold: true,
-                  size: 18,
+                  size: 22,
                   color: COLOR_SLATE_900,
                 }),
               ],
@@ -1322,7 +1376,7 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
           verticalAlign: VerticalAlignTable.CENTER,
           shading: riwayatHeaderShading,
           margins: CELL_MARGIN_WIDE,
-          borders: BORDER_THICK_BLACK,
+          borders: BORDER_THIN_BLACK,
           children: [
             new Paragraph({
               alignment: AlignmentType.CENTER,
@@ -1330,7 +1384,7 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
               children: [
                 makeRun("Versi Dokumen", {
                   bold: true,
-                  size: 18,
+                  size: 22,
                   color: COLOR_SLATE_900,
                 }),
               ],
@@ -1342,7 +1396,7 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
           verticalAlign: VerticalAlignTable.CENTER,
           shading: riwayatHeaderShading,
           margins: CELL_MARGIN_WIDE,
-          borders: BORDER_THICK_BLACK,
+          borders: BORDER_THIN_BLACK,
           children: [
             new Paragraph({
               alignment: AlignmentType.CENTER,
@@ -1350,7 +1404,7 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
               children: [
                 makeRun("Deskripsi Revisi", {
                   bold: true,
-                  size: 18,
+                  size: 22,
                   color: COLOR_SLATE_900,
                 }),
               ],
@@ -1369,14 +1423,14 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
                   width: { size: 2552, type: WidthType.DXA },
                   verticalAlign: VerticalAlignTable.TOP,
                   margins: CELL_MARGIN_WIDE,
-                  borders: BORDER_THICK_BLACK,
+                  borders: BORDER_THIN_BLACK,
                   children: [
                     new Paragraph({
                       alignment: AlignmentType.CENTER,
                       spacing: { after: 0 },
                       children: [
                         makeRun(r.tanggal || "-", {
-                          size: 18,
+                          size: 22,
                           color: COLOR_SLATE_900,
                         }),
                       ],
@@ -1387,14 +1441,14 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
                   width: { size: 2552, type: WidthType.DXA },
                   verticalAlign: VerticalAlignTable.TOP,
                   margins: CELL_MARGIN_WIDE,
-                  borders: BORDER_THICK_BLACK,
+                  borders: BORDER_THIN_BLACK,
                   children: [
                     new Paragraph({
                       alignment: AlignmentType.CENTER,
                       spacing: { after: 0 },
                       children: [
                         makeRun(r.versi || "-", {
-                          size: 18,
+                          size: 22,
                           color: COLOR_SLATE_900,
                         }),
                       ],
@@ -1405,14 +1459,14 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
                   width: { size: 5102, type: WidthType.DXA },
                   verticalAlign: VerticalAlignTable.TOP,
                   margins: CELL_MARGIN_WIDE,
-                  borders: BORDER_THICK_BLACK,
+                  borders: BORDER_THIN_BLACK,
                   children: [
                     new Paragraph({
                       alignment: AlignmentType.JUSTIFIED,
                       spacing: { after: 0 },
                       children: [
                         makeRun(r.deskripsi || "-", {
-                          size: 18,
+                          size: 22,
                           color: COLOR_SLATE_800,
                         }),
                       ],
@@ -1430,14 +1484,14 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
                 width: { size: 2552, type: WidthType.DXA },
                 verticalAlign: VerticalAlignTable.TOP,
                 margins: CELL_MARGIN_WIDE,
-                borders: BORDER_THICK_BLACK,
+                borders: BORDER_THIN_BLACK,
                 children: [
                   new Paragraph({
                     alignment: AlignmentType.CENTER,
                     spacing: { after: 0 },
                     children: [
                       makeRun(spo.metadata.tanggalTerbit || "-", {
-                        size: 18,
+                        size: 22,
                         color: COLOR_SLATE_900,
                       }),
                     ],
@@ -1448,14 +1502,14 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
                 width: { size: 2552, type: WidthType.DXA },
                 verticalAlign: VerticalAlignTable.TOP,
                 margins: CELL_MARGIN_WIDE,
-                borders: BORDER_THICK_BLACK,
+                borders: BORDER_THIN_BLACK,
                 children: [
                   new Paragraph({
                     alignment: AlignmentType.CENTER,
                     spacing: { after: 0 },
                     children: [
                       makeRun(formatSpoVersionLabel(spo.metadata.noRevisi), {
-                        size: 18,
+                        size: 22,
                         color: COLOR_SLATE_900,
                       }),
                     ],
@@ -1466,7 +1520,7 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
                 width: { size: 5102, type: WidthType.DXA },
                 verticalAlign: VerticalAlignTable.TOP,
                 margins: CELL_MARGIN_WIDE,
-                borders: BORDER_THICK_BLACK,
+                borders: BORDER_THIN_BLACK,
                 children: [
                   new Paragraph({
                     alignment: AlignmentType.JUSTIFIED,
@@ -1474,7 +1528,7 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
                     children: [
                       makeRun(
                         "Penyusunan perdana dokumen Standar Prosedur Operasional (SPO).",
-                        { size: 18, color: COLOR_SLATE_800 },
+                        { size: 22, color: COLOR_SLATE_800 },
                       ),
                     ],
                   }),
@@ -1489,7 +1543,7 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
     width: { size: 10206, type: WidthType.DXA },
     columnWidths: [2552, 2552, 5102],
     layout: TableLayoutType.FIXED,
-    borders: BORDER_THICK_BLACK,
+    borders: BORDER_THIN_BLACK,
     rows: riwayatRows,
   });
 
@@ -1500,7 +1554,7 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
     width: { size: 10206, type: WidthType.DXA },
     columnWidths: [3402, 3402, 3402],
     layout: TableLayoutType.FIXED,
-    borders: BORDER_THICK_BLACK,
+    borders: BORDER_THIN_BLACK,
     rows: [
       new TableRow({
         tableHeader: true,
@@ -1511,7 +1565,7 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
             verticalAlign: VerticalAlignTable.CENTER,
             shading: riwayatHeaderShading,
             margins: CELL_MARGIN_WIDE,
-            borders: BORDER_THICK_BLACK,
+            borders: BORDER_THIN_BLACK,
             children: [
               new Paragraph({
                 alignment: AlignmentType.CENTER,
@@ -1519,7 +1573,7 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
                 children: [
                   makeRun("DRAFTER", {
                     bold: true,
-                    size: 20,
+                    size: 24,
                     color: COLOR_SLATE_900,
                     characterSpacing: 15,
                   }),
@@ -1532,7 +1586,7 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
             verticalAlign: VerticalAlignTable.CENTER,
             shading: riwayatHeaderShading,
             margins: CELL_MARGIN_WIDE,
-            borders: BORDER_THICK_BLACK,
+            borders: BORDER_THIN_BLACK,
             children: [
               new Paragraph({
                 alignment: AlignmentType.CENTER,
@@ -1540,7 +1594,7 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
                 children: [
                   makeRun("CREATOR", {
                     bold: true,
-                    size: 20,
+                    size: 24,
                     color: COLOR_SLATE_900,
                     characterSpacing: 15,
                   }),
@@ -1553,7 +1607,7 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
             verticalAlign: VerticalAlignTable.CENTER,
             shading: riwayatHeaderShading,
             margins: CELL_MARGIN_WIDE,
-            borders: BORDER_THICK_BLACK,
+            borders: BORDER_THIN_BLACK,
             children: [
               new Paragraph({
                 alignment: AlignmentType.CENTER,
@@ -1561,7 +1615,7 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
                 children: [
                   makeRun("REVIEWER", {
                     bold: true,
-                    size: 20,
+                    size: 24,
                     color: COLOR_SLATE_900,
                     characterSpacing: 15,
                   }),
@@ -1579,7 +1633,7 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
             width: { size: 3402, type: WidthType.DXA },
             verticalAlign: VerticalAlignTable.BOTTOM,
             margins: { top: 180, bottom: 160, left: 140, right: 140 },
-            borders: BORDER_THICK_BLACK,
+            borders: BORDER_THIN_BLACK,
             children: [
               new Paragraph({
                 alignment: AlignmentType.CENTER,
@@ -1589,11 +1643,11 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
                     ? makeRun(spo.metadata.drafter.nama.trim(), {
                         bold: true,
                         underline: true,
-                        size: 20,
+                        size: 24,
                         color: COLOR_SLATE_900,
                       })
                     : makeRun("________________________", {
-                        size: 20,
+                        size: 24,
                         color: COLOR_SLATE_700,
                       }),
                 ],
@@ -1603,7 +1657,7 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
                 spacing: { after: 0, line: 240 },
                 children: [
                   makeRun(`(${spo.metadata.drafter.jabatan || "Drafter"})`, {
-                    size: 17,
+                    size: 24,
                     color: COLOR_SLATE_700,
                   }),
                 ],
@@ -1614,7 +1668,7 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
             width: { size: 3402, type: WidthType.DXA },
             verticalAlign: VerticalAlignTable.BOTTOM,
             margins: { top: 180, bottom: 160, left: 140, right: 140 },
-            borders: BORDER_THICK_BLACK,
+            borders: BORDER_THIN_BLACK,
             children: [
               new Paragraph({
                 alignment: AlignmentType.CENTER,
@@ -1624,11 +1678,11 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
                     ? makeRun(spo.metadata.creator.nama.trim(), {
                         bold: true,
                         underline: true,
-                        size: 20,
+                        size: 24,
                         color: COLOR_SLATE_900,
                       })
                     : makeRun("________________________", {
-                        size: 20,
+                        size: 24,
                         color: COLOR_SLATE_700,
                       }),
                 ],
@@ -1638,7 +1692,7 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
                 spacing: { after: 0, line: 240 },
                 children: [
                   makeRun(`(${spo.metadata.creator.jabatan || "Creator"})`, {
-                    size: 17,
+                    size: 24,
                     color: COLOR_SLATE_700,
                   }),
                 ],
@@ -1649,7 +1703,7 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
             width: { size: 3402, type: WidthType.DXA },
             verticalAlign: VerticalAlignTable.BOTTOM,
             margins: { top: 180, bottom: 160, left: 140, right: 140 },
-            borders: BORDER_THICK_BLACK,
+            borders: BORDER_THIN_BLACK,
             children: [
               new Paragraph({
                 alignment: AlignmentType.CENTER,
@@ -1659,11 +1713,11 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
                     ? makeRun(spo.metadata.reviewer.nama.trim(), {
                         bold: true,
                         underline: true,
-                        size: 20,
+                        size: 24,
                         color: COLOR_SLATE_900,
                       })
                     : makeRun("________________________", {
-                        size: 20,
+                        size: 24,
                         color: COLOR_SLATE_700,
                       }),
                 ],
@@ -1673,7 +1727,7 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
                 spacing: { after: 0, line: 240 },
                 children: [
                   makeRun(`(${spo.metadata.reviewer.jabatan || "Reviewer"})`, {
-                    size: 17,
+                    size: 24,
                     color: COLOR_SLATE_700,
                   }),
                 ],
@@ -1685,7 +1739,31 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
     ],
   });
 
+  // =========================================================================
+  // KOP HEADER LANJUTAN (HALAMAN 2 DAN SETERUSNYA)
+  // =========================================================================
+  const continuationHeaderTable = new Table({
+    width: { size: 10206, type: WidthType.DXA },
+    columnWidths: [2246, 2653, 2653, 2654],
+    layout: TableLayoutType.FIXED,
+    borders: BORDER_THIN_BLACK,
+    rows: buildKopTopRows(92),
+  });
+
+  const continuationHeader = new Header({
+    children: [
+      continuationHeaderTable,
+      new Paragraph({
+        spacing: { before: 0, after: 120, line: 240 },
+        children: [makeRun("", { size: 8 })],
+      }),
+    ],
+  });
+
   const doc = new Document({
+    features: {
+      updateFields: true,
+    },
     styles: {
       default: {
         document: {
@@ -1696,7 +1774,7 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
               cs: DOC_FONT,
               eastAsia: DOC_FONT,
             },
-            size: 21,
+            size: 22,
             color: COLOR_SLATE_800,
           },
           paragraph: {
@@ -1729,6 +1807,7 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
     sections: [
       {
         properties: {
+          titlePage: true,
           page: {
             size: {
               width: PAGE_WIDTH_TWIPS,
@@ -1739,8 +1818,12 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
               right: PAGE_MARGIN_TWIPS,
               bottom: PAGE_MARGIN_TWIPS,
               left: PAGE_MARGIN_TWIPS,
+              header: PAGE_MARGIN_TWIPS,
             },
           },
+        },
+        headers: {
+          default: continuationHeader,
         },
         children: [
           headerTable,
@@ -1760,7 +1843,7 @@ export async function exportToDocx(spo: SpoDocument): Promise<void> {
             children: [
               makeRun("LEMBAR PENGESAHAN DOKUMEN", {
                 bold: true,
-                size: 21,
+                size: 24,
                 color: COLOR_SLATE_900,
                 characterSpacing: 20,
               }),

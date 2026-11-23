@@ -270,7 +270,7 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
 
             <div>
               <label className="block font-bold text-slate-800 mb-1.5">
-                Pilih Institusi / Korporasi{" "}
+                Pilih Institusi / Korporasi (Logo Kop Otomatis){" "}
                 <span className="text-rose-500">*</span>
               </label>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
@@ -336,7 +336,7 @@ export const GenerateModal: React.FC<GenerateModalProps> = ({
                   value={noDokumen}
                   onChange={(e) => setNoDokumen(e.target.value)}
                   required
-                  placeholder="Wajib diisi — contoh: MED/IGD/2026/012"
+                  placeholder="Wajib diisi — contoh: QAP/....../..."
                   className={`w-full rounded-lg p-2 border font-mono font-medium focus:ring-emerald-500 focus:border-emerald-500 ${
                     isMissingField(noDokumen)
                       ? "border-rose-400 bg-rose-50/40"

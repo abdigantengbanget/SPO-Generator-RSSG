@@ -586,7 +586,7 @@ export const SpoEditor: React.FC<SpoEditorProps> = ({
                   value={spo.metadata.noDokumen}
                   onChange={(e) => updateMetadata("noDokumen", e.target.value)}
                   required
-                  placeholder="Wajib diisi — contoh: QAP/102341/770"
+                  placeholder="Wajib diisi — contoh: QAP/....../..."
                   className={`w-full text-xs font-mono rounded-lg shadow-xs focus:border-emerald-500 focus:ring-emerald-500 p-2.5 border ${
                     !spo.metadata.noDokumen?.trim()
                       ? "border-rose-300 bg-rose-50/30"

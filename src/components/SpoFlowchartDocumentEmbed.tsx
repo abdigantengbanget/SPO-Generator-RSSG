@@ -47,7 +47,7 @@ export const SpoFlowchartDocumentEmbed: React.FC<
     <div className="mt-6">
       {/* Sub-judul Bagian D.2 Diagram Alur Pelayanan */}
       <div className="flex items-center justify-between mb-2">
-        <h3 className="font-bold text-xs sm:text-sm text-slate-900 uppercase tracking-tight">
+        <h3 className="font-bold text-[12pt] text-slate-900 uppercase tracking-tight">
           D.2 DIAGRAM ALUR PELAYANAN (FLOWCHART):
         </h3>
         {onSwitchToFlowchart && (
@@ -66,7 +66,7 @@ export const SpoFlowchartDocumentEmbed: React.FC<
 
       {isBlankTemplate ? (
         <div className="p-5 rounded-xl border border-dashed border-slate-300 bg-slate-50/70 text-center space-y-2">
-          <p className="text-slate-500 text-xs italic">
+          <p className="text-slate-500 text-[11pt] italic">
             [Diagram Alur Pelayanan (Flowchart BPMN) akan otomatis ter-generate
             selaras dengan tabel Prosedur D.1 setelah Anda klik &ldquo;Generate
             SPO Baru&rdquo;]
@@ -346,38 +346,6 @@ export const SpoFlowchartDocumentEmbed: React.FC<
               );
             })}
           </svg>
-
-          {/* Legend Footer */}
-          <div className="bg-slate-50 border-t border-slate-200 px-4 py-2 flex flex-wrap items-center justify-between text-[10px] text-slate-600 gap-2 print:border-black">
-            <div className="flex flex-wrap items-center gap-3">
-              <span className="font-bold text-slate-800">
-                Keterangan Simbol BPMN:
-              </span>
-              <span className="flex items-center space-x-1">
-                <span className="w-2.5 h-2.5 rounded-full border border-emerald-600 inline-block bg-emerald-50" />
-                <span>Mulai / Selesai</span>
-              </span>
-              <span className="flex items-center space-x-1">
-                <span className="w-2.5 h-2 rounded border border-slate-700 inline-block bg-white" />
-                <span>Aktivitas / Tindakan</span>
-              </span>
-              <span className="flex items-center space-x-1">
-                <span className="w-2 h-2 rotate-45 border border-amber-600 inline-block bg-amber-50" />
-                <span>Keputusan (Ya/Tidak)</span>
-              </span>
-              <span className="flex items-center space-x-1">
-                <span className="w-2.5 h-2 border border-purple-600 inline-block bg-purple-50" />
-                <span>Dokumen / Resep</span>
-              </span>
-              <span className="flex items-center space-x-1">
-                <span className="w-2.5 h-2 border border-sky-600 inline-block bg-sky-50" />
-                <span>SIMRS / Database</span>
-              </span>
-            </div>
-            <span className="italic text-slate-400">
-              Standar RS Semen Gresik
-            </span>
-          </div>
         </div>
       )}
     </div>

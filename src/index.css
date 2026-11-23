@@ -2,10 +2,18 @@
 
 @layer base {
   body {
-    font-family: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+    font-family:
+      "Plus Jakarta Sans",
+      system-ui,
+      -apple-system,
+      sans-serif;
     color: #1e293b;
     background-color: #f8fafc;
   }
+}
+
+.spo-doc-calibri {
+  font-family: "Calibri", "Carlito", "Segoe UI", Arial, sans-serif;
 }
 
 /* Custom Print Rules for High-Fidelity Official Hospital SPO */
@@ -37,6 +45,8 @@
     border: none !important;
     width: 100% !important;
     max-width: 100% !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
   .page-break-before {

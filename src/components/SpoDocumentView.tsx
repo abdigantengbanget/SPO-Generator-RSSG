@@ -23,7 +23,7 @@ export const SpoDocumentView: React.FC<SpoDocumentViewProps> = ({
   return (
     <div className="w-full flex flex-col items-center py-6 px-2 sm:px-4">
       {/* A4 Paper Container */}
-      <div className="spo-print-container bg-white w-full max-w-[850px] shadow-lg border border-slate-200 print:shadow-none print:border-none p-6 sm:p-12 text-slate-900 font-sans leading-relaxed text-[13px] sm:text-[14px]">
+      <div className="spo-print-container spo-doc-calibri bg-white w-full max-w-[850px] shadow-lg border border-slate-200 print:shadow-none print:border-none p-6 sm:p-12 text-slate-900 leading-relaxed text-[11pt]">
         {/* KOP / HEADER TABLE - SESUAI STANDAR RESMI TEMPLATE RS SEMEN GRESIK / PT CIPTA NIRMALA */}
         <div className="relative group">
           {onEditSection && (
@@ -36,7 +36,7 @@ export const SpoDocumentView: React.FC<SpoDocumentViewProps> = ({
               <span>Edit Kop</span>
             </button>
           )}
-          <table className="w-full border-collapse border-2 border-black mb-6 text-slate-900 bg-white">
+          <table className="w-full border-collapse border border-black mb-6 text-slate-900 bg-white">
             <colgroup>
               <col className="w-[22%]" />
               <col className="w-[26%]" />
@@ -49,7 +49,7 @@ export const SpoDocumentView: React.FC<SpoDocumentViewProps> = ({
                 {/* Kolom 1: Logo RS Semen Gresik spanning 2 rows */}
                 <td
                   rowSpan={2}
-                  className="border-r-2 border-b-2 border-black p-3 text-center align-middle bg-white"
+                  className="border-r border-b border-black p-3 text-center align-middle bg-white"
                 >
                   <div className="flex flex-col items-center justify-center">
                     <img
@@ -63,9 +63,9 @@ export const SpoDocumentView: React.FC<SpoDocumentViewProps> = ({
                 {/* Kolom 2-4: Judul Dokumen SPO */}
                 <td
                   colSpan={3}
-                  className="border-b-2 border-black p-3 sm:p-5 text-center align-middle"
+                  className="border-b border-black p-3 sm:p-5 text-center align-middle"
                 >
-                  <h1 className="font-bold text-sm sm:text-base md:text-lg tracking-wide uppercase leading-snug">
+                  <h1 className="font-bold text-[14pt] tracking-wide uppercase leading-snug">
                     {spo.judulSpo || (
                       <span className="text-slate-400 italic font-medium normal-case">
                         [Judul SPO Belum Diisi - Klik Generate SPO Baru untuk
@@ -77,57 +77,57 @@ export const SpoDocumentView: React.FC<SpoDocumentViewProps> = ({
               </tr>
 
               {/* ROW 2: No Dokumen, No Revisi, Halaman */}
-              <tr className="text-center text-xs">
+              <tr className="text-center text-[12pt]">
                 {/* Kolom 2 */}
-                <td className="border-r-2 border-b-2 border-black py-1.5 px-2 align-middle">
-                  <div className="font-semibold text-[11px] text-slate-700">
+                <td className="border-r border-b border-black py-1.5 px-2 align-middle">
+                  <div className="font-semibold text-[12pt] text-slate-700 leading-snug">
                     No. Dokumen
                   </div>
-                  <div className="font-medium text-xs sm:text-sm mt-0.5">
+                  <div className="font-medium text-[12pt] mt-0.5 leading-snug">
                     {spo.metadata.noDokumen || (
                       <span className="text-slate-400 italic">
-                        [Contoh: QAP/102341/770]
+                        [Contoh: QAP/....../...]
                       </span>
                     )}
                   </div>
                 </td>
                 {/* Kolom 3 */}
-                <td className="border-r-2 border-b-2 border-black py-1.5 px-2 align-middle">
-                  <div className="font-semibold text-[11px] text-slate-700">
+                <td className="border-r border-b border-black py-1.5 px-2 align-middle">
+                  <div className="font-semibold text-[12pt] text-slate-700 leading-snug">
                     No. Revisi
                   </div>
-                  <div className="font-medium text-xs sm:text-sm mt-0.5">
+                  <div className="font-medium text-[12pt] mt-0.5 leading-snug">
                     {spo.metadata.noRevisi || (
                       <span className="text-slate-400 italic">[Contoh: 0]</span>
                     )}
                   </div>
                 </td>
                 {/* Kolom 4 */}
-                <td className="border-b-2 border-black py-1.5 px-2 align-middle">
-                  <div className="font-semibold text-[11px] text-slate-700">
+                <td className="border-b border-black py-1.5 px-2 align-middle">
+                  <div className="font-semibold text-[12pt] text-slate-700 leading-snug">
                     Halaman
                   </div>
-                  <div className="font-medium text-xs sm:text-sm mt-0.5">
+                  <div className="font-medium text-[12pt] mt-0.5 leading-snug">
                     1 dari 1
                   </div>
                 </td>
               </tr>
 
               {/* ROW 3: SPO, Tanggal terbit, Ditetapkan Kepala RS */}
-              <tr className="text-xs">
+              <tr className="text-[12pt]">
                 {/* Kolom 1: SPO */}
-                <td className="border-r-2 border-black p-3 text-center align-middle">
+                <td className="border-r border-black p-3 text-center align-middle">
                   <span className="font-black text-lg sm:text-xl tracking-widest text-slate-900 block">
                     SPO
                   </span>
                 </td>
 
                 {/* Kolom 2: Tanggal Terbit */}
-                <td className="border-r-2 border-black p-2.5 text-center align-middle">
-                  <div className="font-semibold text-[11px] text-slate-700">
+                <td className="border-r border-black p-2.5 text-center align-middle">
+                  <div className="font-semibold text-[12pt] text-slate-700 leading-snug">
                     Tanggal terbit
                   </div>
-                  <div className="font-medium text-xs sm:text-sm mt-0.5">
+                  <div className="font-medium text-[12pt] mt-0.5 leading-snug">
                     {spo.metadata.tanggalTerbit || (
                       <span className="text-slate-400 italic">
                         [Contoh: 04 November 2026]
@@ -139,21 +139,21 @@ export const SpoDocumentView: React.FC<SpoDocumentViewProps> = ({
                 {/* Kolom 3-4: Ditetapkan Kepala Rumah Sakit */}
                 <td
                   colSpan={2}
-                  className="p-3 text-center align-bottom min-h-[95px]"
+                  className="p-3 text-center align-bottom min-h-[105px]"
                 >
                   <div className="flex flex-col justify-between h-full pt-1 pb-1">
                     <div>
-                      <div className="font-semibold text-[11px] text-slate-700">
+                      <div className="font-semibold text-[12pt] text-slate-700 leading-snug">
                         Ditetapkan,
                       </div>
-                      <div className="text-[11px] text-slate-800 font-medium">
+                      <div className="text-[12pt] text-slate-800 font-medium leading-snug">
                         {spo.metadata.kepalaRumahSakitJabatan?.trim() ||
                           "Kepala Rumah Sakit"}
                       </div>
                     </div>
                     <div className="w-full pt-10 sm:pt-12">
                       {spo.metadata.kepalaRumahSakit?.trim() ? (
-                        <span className="font-bold underline text-xs sm:text-sm inline-block">
+                        <span className="font-bold underline text-[12pt] inline-block leading-snug">
                           {spo.metadata.kepalaRumahSakit}
                         </span>
                       ) : (
@@ -170,7 +170,7 @@ export const SpoDocumentView: React.FC<SpoDocumentViewProps> = ({
         {/* SECTION A: PENGERTIAN */}
         <section className="mb-6 relative group">
           <div className="flex items-center justify-between mb-2">
-            <h2 className="font-bold text-sm sm:text-base uppercase tracking-tight text-slate-900">
+            <h2 className="font-bold text-[12pt] uppercase tracking-tight text-slate-900">
               A. PENGERTIAN
             </h2>
             <div className="no-print opacity-0 group-hover:opacity-100 transition-opacity flex items-center space-x-1.5">
@@ -188,15 +188,15 @@ export const SpoDocumentView: React.FC<SpoDocumentViewProps> = ({
           </div>
 
           <div className="mb-4">
-            <h3 className="font-bold text-xs sm:text-sm mb-1.5 text-slate-800">
+            <h3 className="font-bold text-[12pt] mb-1.5 text-slate-800">
               A.1 Definisi
             </h3>
-            <p className="mb-2 text-slate-700 text-justify">
+            <p className="mb-2 text-[11pt] text-slate-700 text-justify leading-relaxed">
               Untuk menyamakan persepsi operasional di seluruh unit, batasan
               istilah dalam prosedur ini ditetapkan sebagai berikut:
             </p>
             {spo.pengertian.definisi.length > 0 ? (
-              <ol className="space-y-2 list-none pl-0">
+              <ol className="space-y-2 list-none pl-0 text-[11pt] leading-relaxed">
                 {spo.pengertian.definisi.map((def, idx) => (
                   <li key={idx} className="flex items-start text-justify">
                     <span className="font-semibold mr-1.5 shrink-0">
@@ -212,7 +212,7 @@ export const SpoDocumentView: React.FC<SpoDocumentViewProps> = ({
                 ))}
               </ol>
             ) : (
-              <div className="p-3 rounded-lg border border-dashed border-slate-300 bg-slate-50/70 text-slate-500 text-xs italic">
+              <div className="p-3 rounded-lg border border-dashed border-slate-300 bg-slate-50/70 text-slate-500 text-[11pt] italic">
                 Contoh isi: 1. Triase Gawat Darurat: Sistem seleksi dan
                 pemilahan tingkat kegawatan pasien secara cepat... (Otomatis
                 terisi saat klik Generate SPO Baru)
@@ -221,15 +221,15 @@ export const SpoDocumentView: React.FC<SpoDocumentViewProps> = ({
           </div>
 
           <div>
-            <h3 className="font-bold text-xs sm:text-sm mb-1.5 text-slate-800">
+            <h3 className="font-bold text-[12pt] mb-1.5 text-slate-800">
               A.2 Ruang Lingkup
             </h3>
-            <p className="mb-2 text-slate-700 text-justify">
+            <p className="mb-2 text-[11pt] text-slate-700 text-justify leading-relaxed">
               {spo.pengertian.ruangLingkup.pengantar ||
                 "Prosedur ini berlaku di lingkungan Rumah Sakit dan mengikat seluruh unit pelayanan terkait:"}
             </p>
             {spo.pengertian.ruangLingkup.unitList.length > 0 ? (
-              <ol className="space-y-1 list-none pl-2">
+              <ol className="space-y-1 list-none pl-2 text-[11pt] leading-relaxed">
                 {spo.pengertian.ruangLingkup.unitList.map((unit, idx) => (
                   <li key={idx} className="flex items-start">
                     <span className="font-medium mr-1.5 shrink-0">
@@ -240,7 +240,7 @@ export const SpoDocumentView: React.FC<SpoDocumentViewProps> = ({
                 ))}
               </ol>
             ) : (
-              <div className="p-3 rounded-lg border border-dashed border-slate-300 bg-slate-50/70 text-slate-500 text-xs italic">
+              <div className="p-3 rounded-lg border border-dashed border-slate-300 bg-slate-50/70 text-slate-500 text-[11pt] italic">
                 Contoh unit terkait: 1. Instalasi Gawat Darurat (IGD), 2. Rekam
                 Medis & Admisi, 3. Casemix JKN...
               </div>
@@ -251,7 +251,7 @@ export const SpoDocumentView: React.FC<SpoDocumentViewProps> = ({
         {/* SECTION B: TUJUAN */}
         <section className="mb-6 relative group">
           <div className="flex items-center justify-between mb-2">
-            <h2 className="font-bold text-sm sm:text-base uppercase tracking-tight text-slate-900">
+            <h2 className="font-bold text-[12pt] uppercase tracking-tight text-slate-900">
               B. TUJUAN
             </h2>
             <div className="no-print opacity-0 group-hover:opacity-100 transition-opacity flex items-center space-x-1.5">
@@ -266,15 +266,15 @@ export const SpoDocumentView: React.FC<SpoDocumentViewProps> = ({
               )}
             </div>
           </div>
-          <p className="mb-2 text-slate-700 text-justify">
+          <p className="mb-2 text-[11pt] text-slate-700 text-justify leading-relaxed">
             Prosedur ini bertujuan untuk menetapkan standar operasional dalam
             mengelola dan memitigasi risiko operasional dengan sasaran:
           </p>
           {spo.tujuan.length > 0 ? (
-            <ul className="space-y-2 pl-2">
+            <ul className="space-y-2 pl-2 text-[11pt] leading-relaxed">
               {spo.tujuan.map((tuj, idx) => (
                 <li key={idx} className="flex items-start text-justify">
-                  <span className="mr-2 text-slate-900 text-xs mt-1">●</span>
+                  <span className="mr-2 text-slate-900 text-[9pt] mt-1">●</span>
                   <div>
                     <span className="font-bold text-slate-900">
                       {tuj.judulTujuan}:{" "}
@@ -285,7 +285,7 @@ export const SpoDocumentView: React.FC<SpoDocumentViewProps> = ({
               ))}
             </ul>
           ) : (
-            <div className="p-3 rounded-lg border border-dashed border-slate-300 bg-slate-50/70 text-slate-500 text-xs italic">
+            <div className="p-3 rounded-lg border border-dashed border-slate-300 bg-slate-50/70 text-slate-500 text-[11pt] italic">
               Contoh sasaran: ● Keselamatan Pasien: Memastikan respon tindakan
               segera &lt; 5 menit untuk kondisi darurat resusitasi...
             </div>
@@ -295,7 +295,7 @@ export const SpoDocumentView: React.FC<SpoDocumentViewProps> = ({
         {/* SECTION C: KEBIJAKAN */}
         <section className="mb-6 relative group">
           <div className="flex items-center justify-between mb-2">
-            <h2 className="font-bold text-sm sm:text-base uppercase tracking-tight text-slate-900">
+            <h2 className="font-bold text-[12pt] uppercase tracking-tight text-slate-900">
               C. KEBIJAKAN
             </h2>
             <div className="no-print opacity-0 group-hover:opacity-100 transition-opacity flex items-center space-x-1.5">
@@ -321,11 +321,11 @@ export const SpoDocumentView: React.FC<SpoDocumentViewProps> = ({
           </div>
 
           <div className="mb-5">
-            <h3 className="font-bold text-xs sm:text-sm mb-1.5 text-slate-800">
+            <h3 className="font-bold text-[12pt] mb-1.5 text-slate-800">
               C.1 Ketentuan Kebijakan
             </h3>
             {spo.kebijakan.ketentuan.length > 0 ? (
-              <ol className="space-y-2 list-none pl-0">
+              <ol className="space-y-2 list-none pl-0 text-[11pt] leading-relaxed">
                 {spo.kebijakan.ketentuan.map((ket, idx) => (
                   <li key={idx} className="flex items-start text-justify">
                     <span className="font-semibold mr-1.5 shrink-0">
@@ -336,7 +336,7 @@ export const SpoDocumentView: React.FC<SpoDocumentViewProps> = ({
                 ))}
               </ol>
             ) : (
-              <div className="p-3 rounded-lg border border-dashed border-slate-300 bg-slate-50/70 text-slate-500 text-xs italic">
+              <div className="p-3 rounded-lg border border-dashed border-slate-300 bg-slate-50/70 text-slate-500 text-[11pt] italic">
                 Contoh ketentuan: 1. Seluruh staf wajib patuh pada regulasi
                 keselamatan pasien, 2. Verifikasi ganda untuk tindakan berisiko
                 tinggi...
@@ -346,24 +346,24 @@ export const SpoDocumentView: React.FC<SpoDocumentViewProps> = ({
 
           {/* C.2 Analisis Risiko & Mitigasi Table */}
           <div className="page-break-inside-avoid">
-            <h3 className="font-bold text-xs sm:text-sm mb-2 text-slate-800">
+            <h3 className="font-bold text-[12pt] mb-2 text-slate-800">
               C.2 Analisis Risiko & Mitigasi (Risk Register Operasional)
             </h3>
             <div className="overflow-x-auto">
-              <table className="w-full border-collapse border border-black text-xs">
+              <table className="w-full border-collapse border border-[#8EA9DB] text-[11pt]">
                 <thead>
-                  <tr className="bg-slate-100 print:bg-transparent text-center font-bold">
-                    <th className="border border-black p-2 w-[8%]">KODE</th>
-                    <th className="border border-black p-2 w-[22%]">
+                  <tr className="bg-[#4472C4] text-white text-center font-bold">
+                    <th className="border border-[#4472C4] p-2 w-[8%]">KODE</th>
+                    <th className="border border-[#4472C4] p-2 w-[22%]">
                       PROSES / AKTIVITAS
                     </th>
-                    <th className="border border-black p-2 w-[20%]">
+                    <th className="border border-[#4472C4] p-2 w-[20%]">
                       NAMA RISIKO
                     </th>
-                    <th className="border border-black p-2 w-[25%]">
+                    <th className="border border-[#4472C4] p-2 w-[25%]">
                       DESKRIPSI RISIKO
                     </th>
-                    <th className="border border-black p-2 w-[25%]">
+                    <th className="border border-[#4472C4] p-2 w-[25%]">
                       PENGENDALIAN RISIKO / MITIGASI
                     </th>
                   </tr>
@@ -371,20 +371,23 @@ export const SpoDocumentView: React.FC<SpoDocumentViewProps> = ({
                 <tbody>
                   {spo.kebijakan.riskRegister.length > 0 ? (
                     spo.kebijakan.riskRegister.map((risk, idx) => (
-                      <tr key={idx} className="align-top">
-                        <td className="border border-black p-2 text-center font-bold">
+                      <tr
+                        key={idx}
+                        className={`align-top ${idx % 2 === 0 ? "bg-[#D9E1F2]" : "bg-white"}`}
+                      >
+                        <td className="border border-[#8EA9DB] p-2 text-center font-bold">
                           {risk.kode}
                         </td>
-                        <td className="border border-black p-2 font-medium">
+                        <td className="border border-[#8EA9DB] p-2 font-medium">
                           {risk.proses}
                         </td>
-                        <td className="border border-black p-2 font-semibold">
+                        <td className="border border-[#8EA9DB] p-2 font-semibold">
                           {risk.namaRisiko}
                         </td>
-                        <td className="border border-black p-2 text-justify">
+                        <td className="border border-[#8EA9DB] p-2 text-justify">
                           {risk.deskripsiRisiko}
                         </td>
-                        <td className="border border-black p-2 text-justify">
+                        <td className="border border-[#8EA9DB] p-2 text-justify">
                           <ol className="list-decimal pl-3 space-y-1">
                             {risk.mitigasi.map((m, mIdx) => (
                               <li key={mIdx}>{m}</li>
@@ -394,10 +397,10 @@ export const SpoDocumentView: React.FC<SpoDocumentViewProps> = ({
                       </tr>
                     ))
                   ) : (
-                    <tr>
+                    <tr className="bg-[#D9E1F2]">
                       <td
                         colSpan={5}
-                        className="p-3 text-center text-slate-400 italic border border-black bg-slate-50/50"
+                        className="p-3 text-center text-slate-500 italic border border-[#8EA9DB]"
                       >
                         [Tabel Risk Register akan otomatis tersusun setelah
                         dokumen di-generate]
@@ -413,7 +416,7 @@ export const SpoDocumentView: React.FC<SpoDocumentViewProps> = ({
         {/* SECTION D: PROSEDUR PELAKSANAAN */}
         <section className="mb-6 relative group">
           <div className="flex items-center justify-between mb-2">
-            <h2 className="font-bold text-sm sm:text-base uppercase tracking-tight text-slate-900">
+            <h2 className="font-bold text-[12pt] uppercase tracking-tight text-slate-900">
               D. PROSEDUR PELAKSANAAN
             </h2>
             <div className="no-print opacity-0 group-hover:opacity-100 transition-opacity flex items-center space-x-1.5">
@@ -428,22 +431,24 @@ export const SpoDocumentView: React.FC<SpoDocumentViewProps> = ({
               )}
             </div>
           </div>
-          <h3 className="font-bold text-xs sm:text-sm mb-2 text-slate-800">
+          <h3 className="font-bold text-[12pt] mb-2 text-slate-800">
             D.1 Uraian Alur Prosedur Operasional
           </h3>
 
           <div className="overflow-x-auto">
-            <table className="w-full border-collapse border border-black text-xs">
+            <table className="w-full border-collapse border border-[#8EA9DB] text-[11pt]">
               <thead>
-                <tr className="bg-slate-100 print:bg-transparent text-center font-bold">
-                  <th className="border border-black p-2 w-[10%]">
+                <tr className="bg-[#4472C4] text-white text-center font-bold">
+                  <th className="border border-[#4472C4] p-2 w-[10%]">
                     NO. PROSES
                   </th>
-                  <th className="border border-black p-2 w-[52%]">
+                  <th className="border border-[#4472C4] p-2 w-[52%]">
                     TAHAPAN & DESKRIPSI KEGIATAN
                   </th>
-                  <th className="border border-black p-2 w-[14%]">LEAD TIME</th>
-                  <th className="border border-black p-2 w-[24%]">
+                  <th className="border border-[#4472C4] p-2 w-[14%]">
+                    LEAD TIME
+                  </th>
+                  <th className="border border-[#4472C4] p-2 w-[24%]">
                     PELAKSANA / FUNGSI
                   </th>
                 </tr>
@@ -451,11 +456,14 @@ export const SpoDocumentView: React.FC<SpoDocumentViewProps> = ({
               <tbody>
                 {spo.prosedur.length > 0 ? (
                   spo.prosedur.map((proc, idx) => (
-                    <tr key={idx} className="align-top">
-                      <td className="border border-black p-2 text-center font-bold">
+                    <tr
+                      key={idx}
+                      className={`align-top ${idx % 2 === 0 ? "bg-[#D9E1F2]" : "bg-white"}`}
+                    >
+                      <td className="border border-[#8EA9DB] p-2 text-center font-bold">
                         {proc.noProses}
                       </td>
-                      <td className="border border-black p-2 text-justify">
+                      <td className="border border-[#8EA9DB] p-2 text-justify">
                         <div className="font-bold uppercase tracking-wide mb-1.5 text-slate-900">
                           {proc.judulTahapan}
                         </div>
@@ -465,10 +473,10 @@ export const SpoDocumentView: React.FC<SpoDocumentViewProps> = ({
                           ))}
                         </ol>
                       </td>
-                      <td className="border border-black p-2 text-center font-medium">
+                      <td className="border border-[#8EA9DB] p-2 text-center font-medium">
                         {proc.leadTime}
                       </td>
-                      <td className="border border-black p-2">
+                      <td className="border border-[#8EA9DB] p-2">
                         <span className="font-medium text-slate-800">
                           {proc.pelaksana}
                         </span>
@@ -476,10 +484,10 @@ export const SpoDocumentView: React.FC<SpoDocumentViewProps> = ({
                     </tr>
                   ))
                 ) : (
-                  <tr>
+                  <tr className="bg-[#D9E1F2]">
                     <td
                       colSpan={4}
-                      className="p-3 text-center text-slate-400 italic border border-black bg-slate-50/50"
+                      className="p-3 text-center text-slate-500 italic border border-[#8EA9DB]"
                     >
                       [Tabel Alur Prosedur & Lead Time akan otomatis tersusun
                       setelah dokumen di-generate]
@@ -500,7 +508,7 @@ export const SpoDocumentView: React.FC<SpoDocumentViewProps> = ({
         {/* SECTION E: TANGGUNG JAWAB UNIT TERKAIT */}
         <section className="mb-6 relative group">
           <div className="flex items-center justify-between mb-2">
-            <h2 className="font-bold text-sm sm:text-base uppercase tracking-tight text-slate-900">
+            <h2 className="font-bold text-[12pt] uppercase tracking-tight text-slate-900">
               E. TANGGUNG JAWAB UNIT TERKAIT
             </h2>
             <div className="no-print opacity-0 group-hover:opacity-100 transition-opacity flex items-center space-x-1.5">
@@ -516,7 +524,7 @@ export const SpoDocumentView: React.FC<SpoDocumentViewProps> = ({
             </div>
           </div>
           {spo.tanggungJawabUnit.length > 0 ? (
-            <ol className="space-y-3 list-none pl-0">
+            <ol className="space-y-3 list-none pl-0 text-[11pt] leading-relaxed">
               {spo.tanggungJawabUnit.map((unitItem, idx) => (
                 <li key={idx} className="text-justify">
                   <div className="font-bold text-slate-900 mb-1">
@@ -537,7 +545,7 @@ export const SpoDocumentView: React.FC<SpoDocumentViewProps> = ({
               ))}
             </ol>
           ) : (
-            <div className="p-3 rounded-lg border border-dashed border-slate-300 bg-slate-50/70 text-slate-500 text-xs italic">
+            <div className="p-3 rounded-lg border border-dashed border-slate-300 bg-slate-50/70 text-slate-500 text-[11pt] italic">
               Contoh: 1. Unit Pelaksana Medis: Bertanggung jawab melaksanakan
               tindakan teknis sesuai SPO...
             </div>
@@ -547,7 +555,7 @@ export const SpoDocumentView: React.FC<SpoDocumentViewProps> = ({
         {/* SECTION F: FORMULIR & DOKUMEN PENDUKUNG */}
         <section className="mb-6 relative group">
           <div className="flex items-center justify-between mb-2">
-            <h2 className="font-bold text-sm sm:text-base uppercase tracking-tight text-slate-900">
+            <h2 className="font-bold text-[12pt] uppercase tracking-tight text-slate-900">
               F. FORMULIR & DOKUMEN PENDUKUNG
             </h2>
             {onEditSection && (
@@ -562,11 +570,11 @@ export const SpoDocumentView: React.FC<SpoDocumentViewProps> = ({
           </div>
 
           <div className="mb-4">
-            <h3 className="font-bold text-xs sm:text-sm mb-1.5 text-slate-800">
+            <h3 className="font-bold text-[12pt] mb-1.5 text-slate-800">
               F.1 Dokumen Terkait
             </h3>
             {spo.formulirPendukung.dokumenTerkait.length > 0 ? (
-              <ol className="space-y-1 list-none pl-0">
+              <ol className="space-y-1 list-none pl-0 text-[11pt] leading-relaxed">
                 {spo.formulirPendukung.dokumenTerkait.map((dok, idx) => (
                   <li key={idx} className="flex items-start">
                     <span className="font-medium mr-1.5 shrink-0">
@@ -577,7 +585,7 @@ export const SpoDocumentView: React.FC<SpoDocumentViewProps> = ({
                 ))}
               </ol>
             ) : (
-              <div className="p-3 rounded-lg border border-dashed border-slate-300 bg-slate-50/70 text-slate-500 text-xs italic">
+              <div className="p-3 rounded-lg border border-dashed border-slate-300 bg-slate-50/70 text-slate-500 text-[11pt] italic">
                 [Daftar dokumen terkait akan otomatis terisi setelah dokumen
                 di-generate atau ditambah lewat menu Edit]
               </div>
@@ -585,19 +593,19 @@ export const SpoDocumentView: React.FC<SpoDocumentViewProps> = ({
           </div>
 
           <div>
-            <h3 className="font-bold text-xs sm:text-sm mb-2 text-slate-800">
+            <h3 className="font-bold text-[12pt] mb-2 text-slate-800">
               F.2 Riwayat Perubahan Dokumen
             </h3>
-            <table className="w-full border-collapse border-2 border-black text-xs">
+            <table className="w-full border-collapse border border-black text-[11pt]">
               <thead>
-                <tr className="bg-slate-50 print:bg-transparent text-center font-bold border-b-2 border-black">
-                  <th className="border-2 border-black p-2.5 w-[25%] font-bold text-slate-900">
+                <tr className="bg-slate-50 print:bg-transparent text-center font-bold border-b border-black">
+                  <th className="border border-black p-2.5 w-[25%] font-bold text-slate-900">
                     Tanggal
                   </th>
-                  <th className="border-2 border-black p-2.5 w-[25%] font-bold text-slate-900">
+                  <th className="border border-black p-2.5 w-[25%] font-bold text-slate-900">
                     Versi Dokumen
                   </th>
-                  <th className="border-2 border-black p-2.5 w-[50%] font-bold text-slate-900">
+                  <th className="border border-black p-2.5 w-[50%] font-bold text-slate-900">
                     Deskripsi Revisi
                   </th>
                 </tr>
@@ -607,28 +615,28 @@ export const SpoDocumentView: React.FC<SpoDocumentViewProps> = ({
                   spo.formulirPendukung.riwayatPerubahan.map((rev, idx) => (
                     <tr
                       key={idx}
-                      className="align-top border-b-2 border-black last:border-b-0"
+                      className="align-top border-b border-black last:border-b-0"
                     >
-                      <td className="border-2 border-black p-2.5 text-center font-medium">
+                      <td className="border border-black p-2.5 text-center font-medium">
                         {rev.tanggal || "-"}
                       </td>
-                      <td className="border-2 border-black p-2.5 text-center font-medium">
+                      <td className="border border-black p-2.5 text-center font-medium">
                         {rev.versi || "-"}
                       </td>
-                      <td className="border-2 border-black p-2.5 text-justify">
+                      <td className="border border-black p-2.5 text-justify">
                         {rev.deskripsi || "-"}
                       </td>
                     </tr>
                   ))
                 ) : (
-                  <tr className="align-top border-b-2 border-black last:border-b-0">
-                    <td className="border-2 border-black p-2.5 text-center font-medium">
+                  <tr className="align-top border-b border-black last:border-b-0">
+                    <td className="border border-black p-2.5 text-center font-medium">
                       {spo.metadata.tanggalTerbit || "-"}
                     </td>
-                    <td className="border-2 border-black p-2.5 text-center font-medium">
+                    <td className="border border-black p-2.5 text-center font-medium">
                       {formatSpoVersionLabel(spo.metadata.noRevisi)}
                     </td>
-                    <td className="border-2 border-black p-2.5 text-justify">
+                    <td className="border border-black p-2.5 text-justify">
                       Penyusunan perdana dokumen Standar Prosedur Operasional
                       (SPO).
                     </td>
@@ -642,7 +650,7 @@ export const SpoDocumentView: React.FC<SpoDocumentViewProps> = ({
         {/* LEMBAR PENGESAHAN DOKUMEN */}
         <section className="mt-8 page-break-inside-avoid relative group">
           <div className="flex items-center justify-between mb-2">
-            <div className="text-center w-full font-bold text-xs sm:text-sm uppercase tracking-wider text-slate-900">
+            <div className="text-center w-full font-bold text-[12pt] uppercase tracking-wider text-slate-900">
               LEMBAR PENGESAHAN DOKUMEN
             </div>
             {onEditSection && (
@@ -657,16 +665,16 @@ export const SpoDocumentView: React.FC<SpoDocumentViewProps> = ({
             )}
           </div>
 
-          <table className="w-full border-collapse border-2 border-black text-xs table-fixed">
+          <table className="w-full border-collapse border border-black text-[12pt] table-fixed">
             <thead>
-              <tr className="bg-slate-50 print:bg-transparent text-center font-bold border-b-2 border-black">
-                <th className="border-r-2 border-black p-2.5 w-1/3 text-xs sm:text-sm uppercase tracking-wide">
+              <tr className="bg-slate-50 print:bg-transparent text-center font-bold border-b border-black">
+                <th className="border-r border-black p-2.5 w-1/3 text-[12pt] uppercase tracking-wide">
                   Drafter
                 </th>
-                <th className="border-r-2 border-black p-2.5 w-1/3 text-xs sm:text-sm uppercase tracking-wide">
+                <th className="border-r border-black p-2.5 w-1/3 text-[12pt] uppercase tracking-wide">
                   Creator
                 </th>
-                <th className="p-2.5 w-1/3 text-xs sm:text-sm uppercase tracking-wide">
+                <th className="p-2.5 w-1/3 text-[12pt] uppercase tracking-wide">
                   Reviewer
                 </th>
               </tr>
@@ -674,32 +682,32 @@ export const SpoDocumentView: React.FC<SpoDocumentViewProps> = ({
             <tbody>
               <tr>
                 {/* Drafter */}
-                <td className="border-r-2 border-black p-4 text-center align-bottom h-40">
+                <td className="border-r border-black p-4 text-center align-bottom h-40">
                   <div className="pt-16 pb-1">
                     {spo.metadata.drafter.nama?.trim() ? (
-                      <div className="font-bold underline text-xs sm:text-sm text-slate-900 leading-snug">
+                      <div className="font-bold underline text-[12pt] text-slate-900 leading-snug">
                         {spo.metadata.drafter.nama}
                       </div>
                     ) : (
                       <div className="border-b border-slate-400 w-36 mx-auto mb-1" />
                     )}
-                    <div className="text-slate-700 text-[11px] mt-1 font-medium leading-tight">
+                    <div className="text-slate-700 text-[12pt] mt-1 font-medium leading-snug">
                       ({spo.metadata.drafter.jabatan || "Drafter"})
                     </div>
                   </div>
                 </td>
 
                 {/* Creator */}
-                <td className="border-r-2 border-black p-4 text-center align-bottom h-40">
+                <td className="border-r border-black p-4 text-center align-bottom h-40">
                   <div className="pt-16 pb-1">
                     {spo.metadata.creator.nama?.trim() ? (
-                      <div className="font-bold underline text-xs sm:text-sm text-slate-900 leading-snug">
+                      <div className="font-bold underline text-[12pt] text-slate-900 leading-snug">
                         {spo.metadata.creator.nama}
                       </div>
                     ) : (
                       <div className="border-b border-slate-400 w-36 mx-auto mb-1" />
                     )}
-                    <div className="text-slate-700 text-[11px] mt-1 font-medium leading-tight">
+                    <div className="text-slate-700 text-[12pt] mt-1 font-medium leading-snug">
                       ({spo.metadata.creator.jabatan || "Creator"})
                     </div>
                   </div>
@@ -709,13 +717,13 @@ export const SpoDocumentView: React.FC<SpoDocumentViewProps> = ({
                 <td className="p-4 text-center align-bottom h-40">
                   <div className="pt-16 pb-1">
                     {spo.metadata.reviewer.nama?.trim() ? (
-                      <div className="font-bold underline text-xs sm:text-sm text-slate-900 leading-snug">
+                      <div className="font-bold underline text-[12pt] text-slate-900 leading-snug">
                         {spo.metadata.reviewer.nama}
                       </div>
                     ) : (
                       <div className="border-b border-slate-400 w-36 mx-auto mb-1" />
                     )}
-                    <div className="text-slate-700 text-[11px] mt-1 font-medium leading-tight">
+                    <div className="text-slate-700 text-[12pt] mt-1 font-medium leading-snug">
                       ({spo.metadata.reviewer.jabatan || "Reviewer"})
                     </div>
                   </div>

@@ -3,7 +3,7 @@ import { SpoDocument } from "../types/spo";
 export const BLANK_SPO_TEMPLATE: SpoDocument = {
   judulSpo: "",
   metadata: {
-    institusi: "RUMAH SAKIT SEMEN GRESIK / PT CIPTA NIRMALA",
+    institusi: "RUMAH SAKIT SEMEN GRESIK",
     noDokumen: "",
     noRevisi: "",
     tanggalTerbit: "",
@@ -46,7 +46,7 @@ export const TEMPLATE_RS_SEMEN_GRESIK: SpoDocument = {
   judulSpo:
     "PENCEGAHAN TIDAK LAYAK BAYAR (TLB) KLAIM LAYANAN DI ANTARA TINDAKAN REHABILITASI MEDIK PADA PASIEN TANGGUNGAN BPJS KESEHATAN",
   metadata: {
-    institusi: "RUMAH SAKIT SEMEN GRESIK / PT CIPTA NIRMALA",
+    institusi: "RUMAH SAKIT SEMEN GRESIK",
     noDokumen: "QAP/102341/770",
     noRevisi: "0",
     tanggalTerbit: "23 Oktober 2026",
@@ -485,7 +485,7 @@ export const PRESET_LIST = [
       judulSpo:
         "TRIASE DAN PENETAPAN PRIORITAS PASIEN GAWAT DARURAT DI INSTALASI GAWAT DARURAT (IGD)",
       metadata: {
-        institusi: "RUMAH SAKIT SEMEN GRESIK / PT CIPTA NIRMALA",
+        institusi: "RUMAH SAKIT SEMEN GRESIK",
         noDokumen: "MED/IGD/2026/042",
         noRevisi: "0",
         tanggalTerbit: "01 November 2026",
@@ -672,7 +672,7 @@ export const PRESET_LIST = [
       judulSpo:
         "PENGELOLAAN DAN PEMBERIAN OBAT-OBATAN KONSENTRASI TINGGI (HIGH ALERT MEDICATIONS)",
       metadata: {
-        institusi: "RUMAH SAKIT SEMEN GRESIK / PT CIPTA NIRMALA",
+        institusi: "RUMAH SAKIT SEMEN GRESIK",
         noDokumen: "FAR/SPO/2026/118",
         noRevisi: "1",
         tanggalTerbit: "15 September 2026",

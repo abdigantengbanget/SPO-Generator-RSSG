@@ -64,6 +64,7 @@ import {
   SYMBOL_DEFINITIONS,
 } from "../utils/flowchartHelper";
 import { FlowchartNodeShape } from "./FlowchartNodeShape";
+import { getInstitutionBranding } from "../utils/institutionBranding";
 
 interface FlowchartViewProps {
   spo: SpoDocument;
@@ -1608,6 +1609,7 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({
   const draggedNodeLane = draggingNodeId
     ? nodes.find((n) => n.id === draggingNodeId)?.lane
     : null;
+  const institutionBranding = getInstitutionBranding(spo.metadata?.institusi);
 
   return (
     <div className="max-w-[1640px] mx-auto py-4 px-2 sm:px-5">
@@ -1628,10 +1630,12 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({
         <div className="pb-2.5 border-b border-slate-100">
           <div className="min-w-0">
             <div className="text-[11px] font-bold uppercase tracking-wider text-emerald-700">
-              Editor Diagram Alur Cross-Functional (Swimlane)
+              Editor Diagram Alur Cross-Functional (Swimlane) —{" "}
+              {institutionBranding.fullName}
             </div>
             <h2 className="text-sm sm:text-base font-bold text-slate-900 truncate">
-              {spo.judulSpo}
+              {spo.judulSpo ||
+                "DIAGRAM ALUR STANDAR PROSEDUR OPERASIONAL (SPO)"}
             </h2>
           </div>
         </div>
@@ -1999,7 +2003,7 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({
           <div
             style={{
               width: `${(canvasWidth + 56) * scale}px`,
-              minHeight: `${(canvasHeight + 170) * scale}px`,
+              minHeight: `${(canvasHeight + 130) * scale}px`,
               margin: "0 auto",
             }}
           >
@@ -2011,30 +2015,6 @@ export const FlowchartView: React.FC<FlowchartViewProps> = ({
               }}
               className="bg-white p-6 sm:p-7 rounded-xl shadow-md border border-slate-300 relative select-none"
             >
-              {/* Official Hospital Top Header */}
-              <div className="mb-4">
-                <div className="flex items-center pb-3 border-b-2 border-slate-800">
-                  <div className="flex items-center space-x-3">
-                    <img
-                      src="/assets/aistudio/rs-semen-gresik_d7d14617.png"
-                      alt="Logo RS Semen Gresik"
-                      className="h-12 w-auto object-contain"
-                      onError={(e) => {
-                        (e.currentTarget as HTMLElement).style.display = "none";
-                      }}
-                    />
-                    <div>
-                      <h1 className="text-base font-extrabold text-slate-900 tracking-tight uppercase">
-                        {spo.metadata.institusi}
-                      </h1>
-                      <p className="text-[11px] font-semibold text-slate-600">
-                        STANDAR PROSEDUR OPERASIONAL (SPO) PELAYANAN
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
               {/* Lane Bar Quick Strip */}
               <div className="no-print flex items-center justify-between mb-2.5 px-0.5">
                 <div className="flex items-center space-x-2 text-xs text-slate-700">
